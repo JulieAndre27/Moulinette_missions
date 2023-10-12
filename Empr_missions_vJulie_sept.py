@@ -18,27 +18,29 @@ d_short_distance_plane = 1000
 d_medium_distance_plane = 3500
 
 # Emissions factors for plane (kgCO2e / km)
+offset_plane_km = 95  # an offset to add to the geodesic distance for plane.
 FE_short_distance_plane = 0.258
 FE_medium_distance_plane = 0.187
 FE_long_distance_plane = 0.152
 
 # Emission factor for cars (general) (kgCO2e / km)
 FE_cars = 0.233
+factor_distance_car = 1.3  # approx. : multiply the geodesic distance to take into account the path is not straight.
 
 # Emissions factors for train (kgCO2e / km)
+factor_distance_train = 1.2  # approx. : multiply the geodesic distance to take into account the path is not straight.
 d_TER_TGV = 200  # limite distance to take TER or TGV emissions
 FE_french_TER = 0.018
 FE_french_TGV = 0.003
 FE_half_french_trains = 0.016  # if the departure is in France but not the destination (vice-versa)
 FE_european_trains = 0.037  # for trains between two cities outside France
 
-# Seuil/threshold of distance (km) used only if a row is missiong the type of transport.
+# Seuil/threshold of distance (km) used only if a row is missing the type of transport.
 Dseuil = 700
 
-
 # data files
-my_config_file_path = 'Data/config_file_LMD_ENS_2022.cfg'
-my_data_file_path = f"Data/Missions_LMD_ENS_2022.xlsx"  # Supported formats are: .xlsx,.xlsm,.xltx,.xltm
+my_config_file_path = 'Data/config_file_LMD_CNRS_2022.cfg'
+my_data_file_path = f"Data/MIS_2022_extrait.xlsx"  # Supported formats are: .xlsx,.xlsm,.xltx,.xltm
 
 # check if the config file is found
 if not os.path.exists(my_config_file_path):
@@ -89,7 +91,7 @@ ws = wb[ws_sheet]  # the fist excel sheet
 
 # takes the columns head names
 column_list = []
-for cell in ws[1]: # what does this do ?
+for cell in ws[1]:  # what does this do ?
     if cell.value:
         column_list.append(int(cell.column))
 n_column_list = len(column_list) - 1
@@ -101,7 +103,7 @@ key_list = list(config_dict.keys())
 # extract the column that are useful for us, from the letters in the config file.
 col_ar = ws[config_dict['aller_retour']]  # columns of the answer to 'aller-retour', oui, non
 col_depart = ws[config_dict['depart_column']]
-col_land_depart = ws[config_dict['land_depart_column']]
+col_land_departure = ws[config_dict['land_depart_column']]
 col_arrival = ws[config_dict['arrival_column']]  # Liste des villes d'arrivées
 col_land_arrival = ws[config_dict['land_arrival_column']]
 col_type = ws[config_dict['t_type_column']]
@@ -124,43 +126,41 @@ col_distance[0].value = "Distance (km)"
 
 for i_rows in range(1, len(col_depart)):  # omit the first line, the column titles
 
-    print(f"working on row number {i_rows+1}/{len(col_depart)}")
+    print(f"working on row number {i_rows + 1}/{len(col_depart)}")
 
     # compute the localisation
-    if col_land_depart[i_rows].value is not None:
-        firstdest = col_depart[i_rows].value + " (" + col_land_depart[i_rows].value + ")"
+    if col_land_departure[i_rows].value is not None:
+        departure = col_depart[i_rows].value + " (" + col_land_departure[i_rows].value + ")"
     else:
-        firstdest = col_depart[i_rows].value
+        departure = col_depart[i_rows].value
     if col_land_arrival[i_rows].value is not None:
-        lastdest = col_arrival[i_rows].value + " (" + col_land_arrival[i_rows].value + ")"
+        arrival = col_arrival[i_rows].value + " (" + col_land_arrival[i_rows].value + ")"
     else:
-        lastdest = col_arrival[i_rows].value
+        arrival = col_arrival[i_rows].value
 
     # Using geocode, find the full locations (with latitude and longitude) of the cities of departure and arrival.
     locations_found = True
     try:
-        location1 = gn.geocode(firstdest, timeout=30)
-        location2 = gn.geocode(lastdest, timeout=30)
-        if location1 is None:
+        location_d = gn.geocode(departure, timeout=30)
+        location_a = gn.geocode(arrival, timeout=30)
+        if location_d is None:
             raise ValueError(
-                f'Departure location not found, at row {i_rows} for {firstdest}')  # GeocoderTimedOut, not defined...
+                f'Departure location not found, at row {i_rows} for {departure}')  # GeocoderTimedOut, not defined...
 
-        if location2 is None:
-            raise ValueError(f'Arrival location not found, at row {i_rows} for {lastdest}')
+        if location_a is None:
+            raise ValueError(f'Arrival location not found, at row {i_rows} for {arrival}')
     except ValueError as e:
         # print("Error: geocode failed with message %s"%(e.message))
         locations_found = False
 
     # now compute the geodesic distance in km, then the related CO2 emissions
 
-
     if locations_found is True:
-        dist_km: float = round(geodesic((location1.latitude, location1.longitude),
-                                        (location2.latitude, location2.longitude)).km)
-        print("distance is :", dist_km, " km")
+        dist_km: float = round(geodesic((location_d.latitude, location_d.longitude),
+                                        (location_a.latitude, location_a.longitude)).km)
 
         transport_type = col_type[i_rows].value
-        print(transport_type)
+        # print(transport_type)
 
         # modify the excel if information is missing
         if transport_type is None:  # if no given transport
@@ -168,43 +168,52 @@ for i_rows in range(1, len(col_depart)):  # omit the first line, the column titl
             print(transport_type)
 
         # We can now apply the plane emission factors, if at least a plane is mentionned (greater emissions than train)
+        t_type_main = 0
         if t_type_air in transport_type:
+            t_type_main = t_type_air
             if float(dist_km) < d_short_distance_plane:
-                emp_co2 = float(dist_km + 95) * FE_short_distance_plane
+                emp_co2 = float(dist_km + offset_plane_km) * FE_short_distance_plane
             elif float(dist_km) < d_medium_distance_plane:
-                emp_co2 = float(dist_km + 95) * FE_medium_distance_plane
+                emp_co2 = float(dist_km + offset_plane_km) * FE_medium_distance_plane
             else:  # long-distance plane
-                emp_co2 = float(dist_km + 95) * FE_long_distance_plane
+                emp_co2 = float(dist_km + offset_plane_km) * FE_long_distance_plane
+
 
         # Apply the train emissions, for the train traject (on which no plane is taken at all)
         elif t_type_train in transport_type:
+            t_type_main = t_type_train
             # For train emission factor, we distinguish if both cities are in France or not, to use SNCF's emission factors or European ones.
-            if (location1.raw['countryCode'] == 'FR') and (location2.raw['countryCode'] == 'FR'):
-                if 1.2 * dist_km < d_TER_TGV:
+            if (location_d.raw['countryCode'] == 'FR') and (location_a.raw['countryCode'] == 'FR'):
+                if factor_distance_train * dist_km < d_TER_TGV:
                     # use TER emission factors
-                    emp_co2 = 1.2 * float(dist_km) * FE_french_TER
+                    emp_co2 = factor_distance_train * float(dist_km) * FE_french_TER
                 else:
-                    emp_co2 = 1.2 * float(dist_km) * FE_french_TGV
-            elif (location1.raw['countryCode'] == 'FR') or (location2.raw['countryCode'] == 'FR'):
-                emp_co2 = 1.2 * float(dist_km) * FE_half_french_trains
+                    emp_co2 = factor_distance_train * float(dist_km) * FE_french_TGV
+            elif (location_d.raw['countryCode'] == 'FR') or (location_a.raw['countryCode'] == 'FR'):
+                emp_co2 = factor_distance_train * float(dist_km) * FE_half_french_trains
             else:
-                emp_co2 = 1.2 * float(dist_km) * FE_european_trains
+                emp_co2 = factor_distance_train * float(dist_km) * FE_european_trains
 
         # Apply cars emission, when it's the main transport.
         elif t_type_car.split(',')[0] in transport_type or t_type_car.split(',')[1] in transport_type:
-            print("the main transport is car.")
-            emp_co2 = float(dist_km * 1.3) * FE_cars
+            t_type_main = t_type_car
+            emp_co2 = float(dist_km * factor_distance_car) * FE_cars
 
-        # Finally the rest, rows with mission information, or rows with neither train or plane or car, but only bus, metro etc. We assume a type of transport according to the distance.
+        # Finally the rest, rows with missing information, or rows with neither train or plane or car, but only bus, metro etc. We assume a type of transport according to the distance.
         else:
             print('Transport type based on distance')
             if dist_km < Dseuil:  # we consider it is train
+                t_type_main = t_type_train
                 col_type[i_rows].value = t_type_train
             else:  # we consider that a plane was used
+                t_type_main = t_type_air
                 col_type[i_rows].value = t_type_air
 
+        print(f"One-way emissions from {departure} to {arrival} ({round(dist_km)} km) by {t_type_main} is {round(emp_co2,1)} kg C02e")
+
     aller_retour = col_ar[i_rows].value
-    if aller_retour in ['oui', 'OUI', "Yes", "YES"]:  # it is an 'aller-retour'
+    if aller_retour in ['oui', 'OUI', "Yes", "YES"]:
+        #  it is an 'aller-retour', multiply distance and CO2 by 2
         dist_km *= 2
         emp_co2 *= 2
 
@@ -214,8 +223,9 @@ for i_rows in range(1, len(col_depart)):  # omit the first line, the column titl
         col_comment[i_rows].value = 'OK'
         col_distance[i_rows].value = dist_km
         # add the country code, instead of the country name
-        col_land_depart[i_rows].value = location2.raw['countryCode']
-        col_land_arrival[i_rows].value = location1.raw['countryCode']
+        col_land_departure[i_rows].value = location_d.raw['countryCode']
+        col_land_arrival[i_rows].value = location_a.raw['countryCode']
+        
     else:
         col_comment[i_rows].value = 'Location not found'
         col_distance[i_rows].value = float(0)
