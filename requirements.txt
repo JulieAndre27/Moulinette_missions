@@ -1,0 +1,6 @@
+# version Antoine
+openpyxl
+geopy
+datetime
+numpy
+configparser
