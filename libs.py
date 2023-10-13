@@ -14,7 +14,7 @@ import pandas as pd
 from geopy import geocoders
 from geopy.distance import geodesic
 
-# Setup logging
+# Setup logging to avoid printing all strings
 logging.basicConfig(level=logging.ERROR)
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -89,7 +89,7 @@ class GeoDistanceCalculator:
     """compute distance between locations, cached"""
 
     def __init__(self):
-        self.locator = geocoders.OpenCage(api_key="678b0944bef842d3a072c23dbb30ab4c", timeout=30)
+        self.locator = geocoders.OpenCage(api_key="f92cf03ca7f24c999891faefd3fc4121", timeout=30)
         self.N_api_calls = 0
         self.N_cache_hits = 0
         self.cache_path = "Data/Config/geocache.json"
@@ -153,7 +153,7 @@ class GeoDistanceCalculator:
 class EmissionCalculator:
     """compute emissions for a trip"""
 
-    def __init__(self):
+    def __init__(self, tv_data: TravelData, out: str | Path):
         self.dist_calculator = GeoDistanceCalculator()
 
         ## Parameters
@@ -180,6 +180,9 @@ class EmissionCalculator:
 
         # Threshold (km) used only if a row is missing the type of transport
         self.threshold_unknown_transportation = 700
+        self.threshold_force_plane = 4000  # force plane if distance is too big to avoid input errors
+
+        self.compute(tv_data, out)
 
     def get_co2e_from_distance(self, dist_km: float, transport_type: int, geo_departure: CustomLocation, geo_arrival: CustomLocation) -> tuple[float, str]:
         """get co2e (kg) from data
@@ -238,6 +241,9 @@ class EmissionCalculator:
             transport_type = int(transport_type)
         except ValueError:
             transport_type = 1 if dist_km < self.threshold_unknown_transportation else 0
+        # Handle input errors
+        if dist_km > self.threshold_force_plane:
+            transport_type = 0
 
         co2e_emissions, used_transport_type = self.get_co2e_from_distance(dist_km, transport_type, geo_departure, geo_arrival)
 
@@ -267,7 +273,8 @@ class EmissionCalculator:
         # Format results
         res = res.drop('transport_for_emissions', axis=1)
         res = res.round({"one_way_dist_km": 0, "dist_km": 0, "co2e_emissions_kg": 1})
-        res = res.rename(columns={"departure_city": "Départ (ville)", "departure_country": "Départ (pays)", "arrival_city": "Arrivée (ville)", "arrival_country": "Arrivée (pays)", "t_type": "Transport", "round_trip": "A/R", "one_way_dist_km": "Distance (one-way, km)", "dist_km": "Distance (km)", "co2e_emissions_kg": "CO2e emissions (kg)", "departure_countrycode": "CP départ", "arrival_countrycode": "CP arrivée", "transport_for_emissions_str": "Transport utilisé pour calcul", "uncertainty": "Incertitude (%)"})
+        res = res.rename(columns={"departure_city": "Départ (ville)", "departure_country": "Départ (pays)", "arrival_city": "Arrivée (ville)", "arrival_country": "Arrivée (pays)", "t_type": "Transport", "round_trip": "A/R", "one_way_dist_km": "Distance (one-way, km)", "dist_km": "Distance (km)", "co2e_emissions_kg": "CO2e emissions (kg)", "departure_countrycode": "CP départ", "arrival_countrycode": "CP arrivée", "transport_for_emissions_str": "Transport utilisé pour calcul",
+                                  "uncertainty": "Incertitude (%)"})
 
         # Save to file
         res.to_excel(str(out), sheet_name=tv_data.sheet_name, float_format="%.1f", freeze_panes=(0, 1), index=False)
