@@ -1,2 +1,8 @@
 # Pycharm settings
 .idea/
+
+# Cache
+/Data/geocache.json
+
+# Temp files
+/Data/.~lock.*

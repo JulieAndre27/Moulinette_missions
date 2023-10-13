@@ -6,7 +6,6 @@ import configparser
 import logging
 import os
 from dataclasses import dataclass
-from typing import Any
 
 import geopy
 import orjson.orjson
@@ -36,19 +35,28 @@ class TravelData:
         column_names = ["departure_city", "departure_country", "arrival_city", "arrival_country", "t_type", "round_trip"]
         cols = [ord(config_dict[i].lower()) - 97 for i in column_names]
         # Transportation descriptors
-        self.t_type_air, self.t_type_train, self.t_type_car = (config_dict[i].split(', ') for i in ["t_type_air", "t_type_train", "t_type_car"])
+        self.t_type_air, self.t_type_train, self.t_type_car, self.t_type_ignored = (config_dict[i].lower().split(', ') for i in ["t_type_air", "t_type_train", "t_type_car", "t_type_ignored"])
 
         # load sheet
         # noinspection PyTypeChecker
         self.data = pd.read_excel(data_path, sheet_name=self.sheet_name, usecols=cols, names=column_names)
 
         # determine computed transport type
+        self.unknown_transport_types = set()
         self.data["transport_for_emissions"] = self.data.apply(self.get_transport_for_calculator, axis=1)
+
+        if len(self.unknown_transport_types):
+            logger.warning(f"Unknown transport types: {self.unknown_transport_types}")
 
     def get_transport_for_calculator(self, row: pd.Series) -> str | None:
         """get transport used for computation"""
         if isinstance(row.t_type, str):
-            t_type = [i.strip() for i in row.t_type.split(",")]  # used transport modes
+            t_type = [i.strip().lower() for i in row.t_type.split(",")]  # used transport modes
+            # Check all existing types
+            for t in t_type:
+                if t not in self.t_type_air and t not in self.t_type_train and t not in self.t_type_car and t not in self.t_type_ignored:
+                    self.unknown_transport_types.add(t)
+
             for t_id, t in enumerate([self.t_type_air, self.t_type_train, self.t_type_car]):  # plane > train > car
                 for e in t:  # for each known transportation method
                     if e in t_type:  # check if used and return
@@ -84,6 +92,7 @@ class GeoDistanceCalculator:
         self.N_api_calls = 0
         self.N_cache_hits = 0
         self.cache_path = "Data/geocache.json"
+        self.save_cache_every_N = 100
 
         # load cache
         if not os.path.isfile(self.cache_path):  # make sure file exists
@@ -98,10 +107,11 @@ class GeoDistanceCalculator:
         """output usage"""
         logger.info(f"API calls: {self.N_api_calls}, cache hits: {self.N_cache_hits}")
 
-    def save_cache(self) -> None:
+    def save_cache(self, force=False) -> None:
         """save cache to disk"""
-        with open(self.cache_path, "wb") as f:
-            f.write(orjson.dumps(self.cache))
+        if force or len(self.cache) % self.save_cache_every_N == 0:
+            with open(self.cache_path, "wb") as f:
+                f.write(orjson.dumps(self.cache))
 
     def find_location(self, loc_str: str) -> CustomLocation:
         """find location of place"""
@@ -240,17 +250,19 @@ class EmissionCalculator:
         res = df_result.apply(self.compute_one, axis=1)
 
         self.dist_calculator.print_usage()
+        self.dist_calculator.save_cache(force=True)
 
         res = pd.concat((df_result, res), axis=1)
 
         # Format results
         res = res.drop('transport_for_emissions', axis=1)
         res = res.round({"one_way_dist_km": 0, "dist_km": 0, "co2e_emissions_kg": 0})
-        res = res.rename(columns={"one_way_dist_km": "Distance (one-way, km)", "dist_km": "Distance (km)", "co2e_emissions_kg": "CO2e emissions (kg)", "departure_countrycode": "CP départ", "arrival_countrycode": "CP arrivée", "transport_for_emissions_str": "Transport utilisé pour calcul"})
+        res = res.rename(columns={"departure_city": "Départ (ville)", "departure_country": "Départ (pays)", "arrival_city": "Arrivée (ville)", "arrival_country": "Arrivée (pays)", "t_type": "Transport", "round_trip": "A/R", "one_way_dist_km": "Distance (one-way, km)", "dist_km": "Distance (km)", "co2e_emissions_kg": "CO2e emissions (kg)", "departure_countrycode": "CP départ", "arrival_countrycode": "CP arrivée", "transport_for_emissions_str": "Transport utilisé pour calcul"})
 
         # Save to file
         res.to_excel(out, sheet_name=tv_data.sheet_name, float_format="%.0f", freeze_panes=(0, 1), index=False)
 
 
-td = TravelData("Data/MIS_2022_extrait.xlsx", "Data/config_file_LMD_CNRS_2022.cfg")
-EmissionCalculator().compute(td, "Data/out.ods")
+in_file = "Data/MIS_2022_v2_aller_simple.xlsx"
+td = TravelData(in_file, "Data/config_file_LMD_CNRS_2022.cfg")
+EmissionCalculator().compute(td, in_file.replace(".xlsx", "_CO2.ods"))
