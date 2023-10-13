@@ -16,7 +16,7 @@ from geopy.distance import geodesic
 # Setup logging
 logging.basicConfig(level=logging.ERROR)
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 
 
 class TravelData:
@@ -76,7 +76,7 @@ class CustomLocation:
     @classmethod
     def from_location(cls, loc: geopy.location.Location) -> CustomLocation:
         """init from geopy location"""
-        return cls(loc.address, loc.latitude, loc.longitude, loc.raw.get("countryCode", None))
+        return cls(loc.address, loc.latitude, loc.longitude, loc.raw.get("components", {}).get("ISO_3166-1_alpha-2", None))
 
     @classmethod
     def from_json(cls, data: dict) -> CustomLocation:
@@ -88,7 +88,7 @@ class GeoDistanceCalculator:
     """compute distance between locations, cached"""
 
     def __init__(self):
-        self.gn = geocoders.GeoNames(username='oaumont')
+        self.locator = geocoders.OpenCage(api_key="678b0944bef842d3a072c23dbb30ab4c", timeout=30)
         self.N_api_calls = 0
         self.N_cache_hits = 0
         self.cache_path = "Data/geocache.json"
@@ -120,7 +120,7 @@ class GeoDistanceCalculator:
             return self.cache[loc_str]
 
         self.N_api_calls += 1
-        coord = self.gn.geocode(loc_str, timeout=30)
+        coord = self.locator.geocode(loc_str, language="fr")
         if coord is None:
             raise ValueError(f"Error: could not locate <{loc_str}>")
 
@@ -213,8 +213,9 @@ class EmissionCalculator:
         """compute emissions from a single trip"""
         logger.debug(f"computing one trip {row.departure_city} -> {row.arrival_city}")
 
-        departure_str = f"{row.departure_city} ({row.departure_country})"
-        arrival_str = f"{row.arrival_city} ({row.arrival_country})"
+        departure_str = f"{row.departure_city} ({row.departure_country})" if isinstance(row.departure_country, str) else row.departure_city
+        arrival_str = f"{row.arrival_city} ({row.arrival_country})" if  isinstance(row.arrival_country, str) else row.arrival_city
+
         try:
             dist_km, geo_departure, geo_arrival = self.dist_calculator.get_geodesic_distance_between(departure_str, arrival_str)
         except ValueError as e:
@@ -256,13 +257,14 @@ class EmissionCalculator:
 
         # Format results
         res = res.drop('transport_for_emissions', axis=1)
-        res = res.round({"one_way_dist_km": 0, "dist_km": 0, "co2e_emissions_kg": 0})
+        res = res.round({"one_way_dist_km": 0, "dist_km": 0, "co2e_emissions_kg": 1})
         res = res.rename(columns={"departure_city": "Départ (ville)", "departure_country": "Départ (pays)", "arrival_city": "Arrivée (ville)", "arrival_country": "Arrivée (pays)", "t_type": "Transport", "round_trip": "A/R", "one_way_dist_km": "Distance (one-way, km)", "dist_km": "Distance (km)", "co2e_emissions_kg": "CO2e emissions (kg)", "departure_countrycode": "CP départ", "arrival_countrycode": "CP arrivée", "transport_for_emissions_str": "Transport utilisé pour calcul"})
 
         # Save to file
-        res.to_excel(out, sheet_name=tv_data.sheet_name, float_format="%.0f", freeze_panes=(0, 1), index=False)
+        res.to_excel(out, sheet_name=tv_data.sheet_name, float_format="%.1f", freeze_panes=(0, 1), index=False)
 
 
-in_file = "Data/MIS_2022_v2_aller_simple.xlsx"
-td = TravelData(in_file, "Data/config_file_LMD_CNRS_2022.cfg")
+in_file = "Data/Missions_LMD_ENS_2022.xlsx"
+config_file = "Data/config_file_LMD_ENS_2022.cfg"
+td = TravelData(in_file, config_file)
 EmissionCalculator().compute(td, in_file.replace(".xlsx", "_CO2.ods"))
