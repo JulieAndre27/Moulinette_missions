@@ -34,9 +34,9 @@ class TravelData:
 
         # column letter to index
         column_names = ["departure_city", "departure_country", "arrival_city", "arrival_country", "t_type", "round_trip"]
-        cols = [ord(config_dict[i].lower()) - 97 for i in column_names]
+        cols = [ord(config_dict[v].lower()) - 97 for v in column_names]
         # Transportation descriptors
-        self.t_type_air, self.t_type_train, self.t_type_car, self.t_type_ignored = (config_dict[i].lower().split(', ') for i in ["t_type_air", "t_type_train", "t_type_car", "t_type_ignored"])
+        self.t_type_air, self.t_type_train, self.t_type_car, self.t_type_ignored = ([i.strip() for i in config_dict[i].lower().split(',')] for i in ["t_type_air", "t_type_train", "t_type_car", "t_type_ignored"])
 
         # load sheet
         # noinspection PyTypeChecker
@@ -58,10 +58,11 @@ class TravelData:
                 if t not in self.t_type_air and t not in self.t_type_train and t not in self.t_type_car and t not in self.t_type_ignored:
                     self.unknown_transport_types.add(t)
 
+            t_id_map = ["plane", "train", "car"]
             for t_id, t in enumerate([self.t_type_air, self.t_type_train, self.t_type_car]):  # plane > train > car
                 for e in t:  # for each known transportation method
                     if e in t_type:  # check if used and return
-                        return t_id
+                        return t_id_map[t_id]
 
         return None
 
@@ -188,7 +189,7 @@ class EmissionCalculator:
         """get co2e (kg) from data
 
         :returns (CO2e in kg, transport type used)"""
-        if transport_type == 0:  # plane
+        if transport_type == "plane":  # plane
             corrected_distance = dist_km + self.plane_geodesic_correction_offset_km
             if dist_km < self.d_short_distance_plane:
                 EF = self.EF_short_distance_plane
@@ -200,7 +201,7 @@ class EmissionCalculator:
                 EF = self.EF_long_distance_plane
                 used_ttype = "plane (long)"
 
-        elif transport_type == 1:  # train
+        elif transport_type == "train":  # train
             corrected_distance = self.train_geodesic_correction * dist_km
             # For trains, we distinguish if both cities are in France or not, to use SNCF's emission factors or European ones
             if (geo_departure.countryCode == 'FR') and (geo_arrival.countryCode == 'FR'):  # from AND to france
@@ -213,7 +214,7 @@ class EmissionCalculator:
                 EF = self.EF_european_trains
                 used_ttype = "train (EU)"
 
-        elif transport_type == 2:  # car
+        elif transport_type == "car":  # car
             corrected_distance = self.car_geodesic_correction * dist_km
             EF = self.EF_cars
             used_ttype = "car"
