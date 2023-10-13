@@ -4,10 +4,15 @@ A tool to compute CO2e emisssions from transports in LMD, from ENS and CNRS data
 
 ## How to run
 
-* Install dependencies `poetry install`
-  * if poetry is missing: `python -m pip install poetry` outside of your virtual environment
+* Requirements:
+  * python 3.11
+  * poetry (`python -m pip install poetry` outside of your virtual environment)
+* Recommended:
+  * A virtual environment (`python -m poetry config virtualenvs.in-project true`)
 
-*TODO*
+* Install dependencies `poetry install`
+
+* Run `python moulinette.py`
 
 ## Structure
 
