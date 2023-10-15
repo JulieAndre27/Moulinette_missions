@@ -20,6 +20,11 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 
+def split_strip_lower(s: str, splitter: str = ",") -> list[str]:
+    """lower then split <s> with <splitter>, and strip each member"""
+    return [i.strip() for i in s.lower().split(splitter)]
+
+
 class Enm:
     """Easy Enums"""
 
@@ -36,6 +41,13 @@ class Enm:
     COL_ARRIVAL_COUNTRY = "arrival_country"
     COL_TRANSPORT_TYPE = "t_type"
     COL_ROUND_TRIP = "round_trip"
+    # Custom column names
+    COL_MAIN_TRANSPORT = "main_transport"  # the main transportation method used for computing emissions
+
+    # Main transport types
+    MAIN_TRANSPORT_PLANE = "plane"
+    MAIN_TRANSPORT_TRAIN = "train"
+    MAIN_TRANSPORT_CAR = "car"
 
 
 class MissionsData:
@@ -62,8 +74,8 @@ class MissionsData:
         ]
         cols = [ord(config_dict[v].lower()) - 97 for v in column_names]
         # Transportation descriptors
-        self.t_type_air, self.t_type_train, self.t_type_car, self.t_type_ignored = (
-            [i.strip() for i in config_dict[i].lower().split(",")] for i in ["t_type_air", "t_type_train", "t_type_car", "t_type_ignored"]
+        self.ttypes_air, self.ttypes_train, self.ttypes_car, self.ttypes_ignored = (
+            split_strip_lower(config_dict[i]) for i in ["t_type_air", "t_type_train", "t_type_car", "t_type_ignored"]
         )
 
         # load sheet
@@ -72,27 +84,36 @@ class MissionsData:
 
         # determine computed transport type
         self.unknown_transport_types = set()
-        self.data["transport_for_emissions"] = self.data.apply(self.get_transport_for_calculator, axis=1)
-
-        self.fix_round_trips()
-
+        self.data[Enm.COL_MAIN_TRANSPORT] = self.data.apply(self.get_main_transport, axis=1)
         if len(self.unknown_transport_types):
             logger.warning(f"Unknown transport types: {self.unknown_transport_types}")
 
-    def get_transport_for_calculator(self, row: pd.Series) -> str | None:
-        """get transport used for computation"""
-        if isinstance(row.t_type, str):
-            t_type = [i.strip().lower() for i in row.t_type.split(",")]  # used transport modes
-            # Check all existing types
-            for t in t_type:
-                if t not in self.t_type_air and t not in self.t_type_train and t not in self.t_type_car and t not in self.t_type_ignored:
-                    self.unknown_transport_types.add(t)
+        # sanitize data
+        self.fix_round_trips()
 
-            t_id_map = ["plane", "train", "car"]
-            for t_id, t in enumerate([self.t_type_air, self.t_type_train, self.t_type_car]):  # plane > train > car
-                for e in t:  # for each known transportation method
-                    if e in t_type:  # check if used and return
-                        return t_id_map[t_id]
+    def get_main_transport(self, row: pd.Series) -> str | None:
+        """get main transport used for computation of emissions"""
+        if isinstance(row.t_type, str):
+            row_transports = split_strip_lower(row.t_type)  # row's used transport modes
+            # Check that we recognize all existing types
+            for transport in row_transports:
+                if (
+                    transport not in self.ttypes_air
+                    and transport not in self.ttypes_train
+                    and transport not in self.ttypes_car
+                    and transport not in self.ttypes_ignored
+                ):
+                    self.unknown_transport_types.add(transport)
+
+            transport_priority_order = [
+                (self.ttypes_air, Enm.MAIN_TRANSPORT_PLANE),
+                (self.ttypes_train, Enm.MAIN_TRANSPORT_TRAIN),
+                (self.ttypes_car, Enm.MAIN_TRANSPORT_CAR),
+            ]
+            for ttypes, main_transport in transport_priority_order:  # plane > train > car
+                for ttype in ttypes:  # for each known transportation method
+                    if ttype in row_transports:  # check if used and return
+                        return main_transport
 
         return None
 
@@ -234,7 +255,7 @@ class EmissionCalculator:
     ) -> tuple[float, float, str]:
         """get co2e (kg) from data
         :returns (CO2e in kg, uncertainty in kg, transport type used)"""
-        if transport_type == "plane":  # plane
+        if transport_type == Enm.MAIN_TRANSPORT_PLANE:  # plane
             corrected_distance = dist_km + self.plane_geodesic_correction_offset_km
             EF_uncertainty = self.EF_plane_uncertainty
             # determine the associated emission factor
@@ -248,7 +269,7 @@ class EmissionCalculator:
                 EF = self.EF_long_distance_plane
                 used_ttype = "plane (long)"
 
-        elif transport_type == "train":  # train
+        elif transport_type == Enm.MAIN_TRANSPORT_TRAIN:  # train
             corrected_distance = self.train_geodesic_correction * dist_km
             EF_uncertainty = self.EF_train_uncertainty
             # determine the associated emission factor. For trains, we distinguish if both cities are in France or not, to use SNCF's emission factors or European ones
@@ -268,12 +289,12 @@ class EmissionCalculator:
                 EF = self.EF_european_trains
                 used_ttype = "train (EU)"
 
-        elif transport_type == "car":  # car
+        elif transport_type == Enm.MAIN_TRANSPORT_CAR:  # car
             corrected_distance = self.car_geodesic_correction * dist_km
             EF_uncertainty = self.EF_car_uncertainty
             # determine the associated emission factor
             EF = self.EF_car
-            used_ttype = "car"
+            used_ttype = Enm.MAIN_TRANSPORT_CAR
 
         else:
             raise ValueError
@@ -299,13 +320,13 @@ class EmissionCalculator:
             logger.error(e)
             return None
 
-        transport_type = row.transport_for_emissions
+        transport_type = row[Enm.COL_MAIN_TRANSPORT]
         # Handle unknown transportation
         if not isinstance(transport_type, str):
-            transport_type = "train" if dist_km < self.threshold_unknown_transportation else "plane"
+            transport_type = Enm.MAIN_TRANSPORT_TRAIN if dist_km < self.threshold_unknown_transportation else Enm.MAIN_TRANSPORT_PLANE
         # Handle input errors
         if dist_km > self.threshold_force_plane:
-            transport_type = "plane"
+            transport_type = Enm.MAIN_TRANSPORT_PLANE
 
         is_round_trip = row.round_trip == Enm.ROUNDTRIP_YES
 
@@ -342,9 +363,7 @@ class EmissionCalculator:
         df_output = pd.concat((df_data, df_emissions), axis=1)
 
         # Format the results
-        df_output = df_output.drop(
-            "transport_for_emissions", axis=1
-        )  # the information of the main transport type is already in transport_for_emissions_detailed
+        df_output = df_output.drop(Enm.COL_MAIN_TRANSPORT, axis=1)  # the information of the main transport type is already in transport_for_emissions_detailed
         df_output = df_output.round({"one_way_dist_km": 0, "final_dist_km": 0, "co2e_emissions_kg": 1})
         df_output = df_output.rename(
             columns={
