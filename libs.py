@@ -171,7 +171,7 @@ class EmissionCalculator:
         self.EF_short_distance_plane = 0.258
         self.EF_medium_distance_plane = 0.187
         self.EF_long_distance_plane = 0.152
-        self.EF_plane_uncertainty = 0.6  # todo : update value
+        self.EF_plane_uncertainty = 0.7
 
         # Emissions factors for train (kgCO2e / km)
         self.train_geodesic_correction = 1.2  # approx. : multiply the geodesic distance to take into account the path is not straight.
@@ -180,11 +180,12 @@ class EmissionCalculator:
         self.EF_french_TGV = 0.003
         self.EF_half_french_trains = 0.016  # if the departure is in France but not the destination (vice-versa)
         self.EF_european_trains = 0.037  # for trains between two cities outside France
-        self.EF_train_uncertainty = 0.2  # todo : update value
+        self.EF_train_uncertainty = 0.2
+        self.EF_train_TER_uncertainty = 0.6
 
         # Emission factor for cars (general) (kgCO2e / km)
         self.EF_car = 0.233
-        self.EF_car_uncertainty = 0.2 # todo : update value
+        self.EF_car_uncertainty = 0.6
         self.car_geodesic_correction = 1.3  # approx. : multiply the geodesic distance to take into account the path is not straight.
 
         # Threshold (km) used only if a row is missing the type of transport
@@ -195,7 +196,7 @@ class EmissionCalculator:
         self.compute(tv_data, out)
 
     def get_co2e_from_distance(self, dist_km: float, transport_type: str, geo_departure: CustomLocation,
-                               geo_arrival: CustomLocation) -> tuple[float, float, str]:
+                               geo_arrival: CustomLocation, is_round_trip: bool) -> tuple[float, float, str]:
         """get co2e (kg) from data
         :returns (CO2e in kg, uncertainty in kg, transport type used)"""
         if transport_type == "plane":  # plane
@@ -217,9 +218,14 @@ class EmissionCalculator:
             EF_uncertainty = self.EF_train_uncertainty
             # determine the associated emission factor. For trains, we distinguish if both cities are in France or not, to use SNCF's emission factors or European ones
             if (geo_departure.countryCode == 'FR') and (geo_arrival.countryCode == 'FR'):  # from AND to france
-                EF, used_ttype = (
-                    self.EF_french_TER, "train (TER, FR)") if corrected_distance < self.d_TER_TGV_km else (
-                    self.EF_french_TGV, "train (FR)")
+                if corrected_distance < self.d_TER_TGV_km:  # it is a TER not a TGV
+                    EF = self.EF_french_TER
+                    used_ttype = "train (TER, FR)"
+                    EF_uncertainty = self.EF_train_TER_uncertainty
+                else:
+                    EF = self.EF_french_TGV
+                    used_ttype = "train (FR)"
+
             elif (geo_departure.countryCode == 'FR') or (geo_arrival.countryCode == 'FR'):  # from OR to france
                 EF = self.EF_half_french_trains
                 used_ttype = "train (half-FR)"
@@ -236,7 +242,10 @@ class EmissionCalculator:
 
         else:
             raise ValueError
-
+        
+        if is_round_trip:
+            corrected_distance *= 2
+        
         emissions = corrected_distance * EF  # in kg
         uncertainty = emissions * EF_uncertainty  # in kg
 
@@ -265,24 +274,20 @@ class EmissionCalculator:
         # Handle input errors
         if dist_km > self.threshold_force_plane:
             transport_type = "plane"
+        
+        is_round_trip = row.round_trip.lower() in ['oui', "yes", 'o', 'y']
+        
+        co2e_emissions, uncertainty, used_transport_type = self.get_co2e_from_distance(dist_km, transport_type,
+                                                                                       geo_departure,
+                                                                                       geo_arrival, is_round_trip)
 
-        co2e_emissions, uncertainty, used_transport_type = self.get_co2e_from_distance(dist_km, transport_type, geo_departure,
-                                                                          geo_arrival)
+        final_distance_km = dist_km * 2 if is_round_trip else dist_km
 
         logger.debug(
             f"One-way emissions from {departure_str} to {arrival_str} ({dist_km:.0f} km) by {used_transport_type} is {co2e_emissions:.1f} kg C02e")
 
-        # Round trip
-        final_distance_km = dist_km
-        final_co2e_emissions = co2e_emissions
-        final_uncertainty = uncertainty
-        if row.round_trip.lower() in ['oui', "yes", 'o', 'y']:
-            final_distance_km *= 2
-            final_co2e_emissions *= 2
-            final_uncertainty *= 2
-
         return pd.Series(
-            data=[dist_km, final_distance_km, final_co2e_emissions, geo_departure.countryCode, geo_arrival.countryCode,
+            data=[dist_km, final_distance_km, co2e_emissions, geo_departure.countryCode, geo_arrival.countryCode,
                   used_transport_type, uncertainty],
             index=["one_way_dist_km", "final_dist_km", "co2e_emissions_kg", "departure_countrycode",
                    "arrival_countrycode", "transport_for_emissions_detailed", "uncertainty"])
@@ -304,7 +309,7 @@ class EmissionCalculator:
         # Format the results
         df_output = df_output.drop('transport_for_emissions',
                                    axis=1)  # the information of the main transport type is already in transport_for_emissions_detailed
-        df_output = df_output.round({"one_way_dist_km": 0, "dist_km": 0, "co2e_emissions_kg": 1})
+        df_output = df_output.round({"one_way_dist_km": 0, "final_dist_km": 0, "co2e_emissions_kg": 1})
         df_output = df_output.rename(columns={"departure_city": "Départ (ville)", "departure_country": "Départ (pays)",
                                               "arrival_city": "Arrivée (ville)", "arrival_country": "Arrivée (pays)",
                                               "t_type": "Transport", "round_trip": "A/R",
