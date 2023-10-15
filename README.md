@@ -8,7 +8,7 @@ A tool to compute CO2e emisssions from transports in LMD, from ENS and CNRS data
     * python 3.11
     * poetry (`python -m pip install poetry` outside of your virtual environment)
 * Recommended:
-    * A virtual environment (`python -m poetry config virtualenvs.in-project true`)
+    * If you are not in a virtual environment yet, it will be created as you install dependencies (`python -m poetry config virtualenvs.in-project true`)
 
 * Install dependencies `poetry install`
 

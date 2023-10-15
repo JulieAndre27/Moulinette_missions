@@ -9,5 +9,5 @@ out_file = in_file.replace(".xlsx", "_CO2.ods")  # result will be created as <in
 
 # No need to edit below
 
-td = TravelData(Path("Data/Raw") / in_file, Path("Data/Config") / config_file)
-EmissionCalculator(td, Path("Data/Generated") / out_file)
+td = TravelData(Path("Data/Raw") / in_file, Path("Data/Config") / config_file) # creates a traveldata object
+EmissionCalculator(td, Path("Data/Generated") / out_file)  # computes the emissions and create an output excel file.
