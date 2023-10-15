@@ -319,7 +319,7 @@ class EmissionCalculator:
                                               "departure_countrycode": "Code pays départ",
                                               "arrival_countrycode": "Code pays arrivée",
                                               "transport_for_emissions_detailed": "Transport utilisé pour calcul",
-                                              "uncertainty": "Incertitude (%)"})
+                                              "uncertainty": "Incertitude (kg)"})
 
         # Save to file
         df_output.to_excel(str(output_path), sheet_name=tv_data.sheet_name, float_format="%.1f", freeze_panes=(0, 1),
