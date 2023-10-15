@@ -10,7 +10,9 @@ A tool to compute CO2e emisssions from transports in LMD, from ENS and CNRS data
 * Recommended:
     * If you are not in a virtual environment yet, it will be created as you install dependencies (`python -m poetry config virtualenvs.in-project true`)
 
-* Install dependencies `poetry install`
+* Install dependencies
+  * `poetry install`
+  * `pre-commit install`
 
 * Run `python moulinette.py`
 
@@ -38,6 +40,3 @@ t_type_train = train
 t_type_car = véhicule personnel, location de véhicule, taxi, passager
 t_type_ignored = rer, metro, métro, bus, bateau, divers
 ```
-
-
-
