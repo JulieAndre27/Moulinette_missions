@@ -20,7 +20,25 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 
-class TravelData:
+class Enm:
+    """Easy Enums"""
+
+    # Values of roundtrip in spreadsheet
+    ROUNDTRIP_CORRECTED = "non [corr.]"
+    ROUNDTRIP_YES = "oui"
+    ROUNDTRIP_NO = "non"
+
+    # Column names from config
+    COL_MISSION_ID = "mission_id"
+    COL_DEPARTURE_CITY = "departure_city"
+    COL_DEPARTURE_COUNTRY = "departure_country"
+    COL_ARRIVAL_CITY = "arrival_city"
+    COL_ARRIVAL_COUNTRY = "arrival_country"
+    COL_TRANSPORT_TYPE = "t_type"
+    COL_ROUND_TRIP = "round_trip"
+
+
+class MissionsData:
     """load data from excel/ods according to the conf"""
 
     def __init__(self, data_path: str | Path, conf_path: str | Path):
@@ -33,7 +51,15 @@ class TravelData:
         config_dict = config_dict[self.sheet_name]
 
         # column letter to index
-        column_names = ["departure_city", "departure_country", "arrival_city", "arrival_country", "t_type", "round_trip"]
+        column_names = [
+            Enm.COL_MISSION_ID,
+            Enm.COL_DEPARTURE_CITY,
+            Enm.COL_DEPARTURE_COUNTRY,
+            Enm.COL_ARRIVAL_CITY,
+            Enm.COL_ARRIVAL_COUNTRY,
+            Enm.COL_TRANSPORT_TYPE,
+            Enm.COL_ROUND_TRIP,
+        ]
         cols = [ord(config_dict[v].lower()) - 97 for v in column_names]
         # Transportation descriptors
         self.t_type_air, self.t_type_train, self.t_type_car, self.t_type_ignored = (
@@ -47,6 +73,8 @@ class TravelData:
         # determine computed transport type
         self.unknown_transport_types = set()
         self.data["transport_for_emissions"] = self.data.apply(self.get_transport_for_calculator, axis=1)
+
+        self.fix_round_trips()
 
         if len(self.unknown_transport_types):
             logger.warning(f"Unknown transport types: {self.unknown_transport_types}")
@@ -67,6 +95,13 @@ class TravelData:
                         return t_id_map[t_id]
 
         return None
+
+    def fix_round_trips(self):
+        """Fix incorrect round trips
+        If a mission ID has several trips, set them all to one-way"""
+        self.data[Enm.COL_ROUND_TRIP] = self.data[Enm.COL_ROUND_TRIP].apply(str.lower)
+        duplicated_mission_loc = self.data[Enm.COL_MISSION_ID].duplicated(keep=False)
+        self.data.loc[duplicated_mission_loc & (self.data[Enm.COL_ROUND_TRIP] == Enm.ROUNDTRIP_YES), Enm.COL_ROUND_TRIP] = Enm.ROUNDTRIP_CORRECTED
 
 
 @dataclass
@@ -158,7 +193,7 @@ class GeoDistanceCalculator:
 class EmissionCalculator:
     """compute emissions for a trip"""
 
-    def __init__(self, tv_data: TravelData, out: str | Path):
+    def __init__(self, data_path: str | Path, conf_path: str | Path, out: str | Path):
         self.dist_calculator = GeoDistanceCalculator()
 
         ## Parameters
@@ -192,7 +227,7 @@ class EmissionCalculator:
         self.threshold_force_plane = 4000  # force plane if distance is too big to avoid input errors
 
         # Apply the compute function, which computes the emissions ect.
-        self.compute(tv_data, out)
+        self.compute(MissionsData(data_path, conf_path), out)
 
     def get_co2e_from_distance(
         self, dist_km: float, transport_type: str, geo_departure: CustomLocation, geo_arrival: CustomLocation, is_round_trip: bool
@@ -272,7 +307,7 @@ class EmissionCalculator:
         if dist_km > self.threshold_force_plane:
             transport_type = "plane"
 
-        is_round_trip = row.round_trip.lower() in ["oui", "yes", "o", "y"]
+        is_round_trip = row.round_trip == Enm.ROUNDTRIP_YES
 
         co2e_emissions, uncertainty, used_transport_type = self.get_co2e_from_distance(dist_km, transport_type, geo_departure, geo_arrival, is_round_trip)
 
@@ -293,9 +328,8 @@ class EmissionCalculator:
             ],
         )
 
-    def compute(self, tv_data: TravelData, output_path: str | Path):
+    def compute(self, tv_data: MissionsData, output_path: str | Path):
         """compute emissions for a TravelData and outputs the result as a spreadsheet <output_path>"""
-
         # Create a new dataframe (output data) by first copying the input dataframe
         df_data = tv_data.data
 
@@ -314,12 +348,12 @@ class EmissionCalculator:
         df_output = df_output.round({"one_way_dist_km": 0, "final_dist_km": 0, "co2e_emissions_kg": 1})
         df_output = df_output.rename(
             columns={
-                "departure_city": "Départ (ville)",
-                "departure_country": "Départ (pays)",
-                "arrival_city": "Arrivée (ville)",
-                "arrival_country": "Arrivée (pays)",
-                "t_type": "Transport",
-                "round_trip": "A/R",
+                Enm.COL_DEPARTURE_CITY: "Départ (ville)",
+                Enm.COL_DEPARTURE_COUNTRY: "Départ (pays)",
+                Enm.COL_ARRIVAL_CITY: "Arrivée (ville)",
+                Enm.COL_ARRIVAL_COUNTRY: "Arrivée (pays)",
+                Enm.COL_TRANSPORT_TYPE: "Transport",
+                Enm.COL_ROUND_TRIP: "A/R",
                 "one_way_dist_km": "Distance (one-way, km)",
                 "final_dist_km": "Distance totale (km)",
                 "co2e_emissions_kg": "CO2e emissions (kg)",
