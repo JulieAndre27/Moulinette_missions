@@ -26,20 +26,19 @@ class TravelData:
     def __init__(self, data_path: str | Path, conf_path: str | Path):
         # load conf
         config = configparser.RawConfigParser()
-        config.read(conf_path, encoding='utf-8')
+        config.read(conf_path, encoding="utf-8")
         config_dict = {s: dict(config.items(s)) for s in config.sections()}
         assert len(config_dict.keys()) == 1, "Exactly one sheet must be specified in the configuration"
         self.sheet_name = list(config_dict.keys())[0]
         config_dict = config_dict[self.sheet_name]
 
         # column letter to index
-        column_names = ["departure_city", "departure_country", "arrival_city", "arrival_country", "t_type",
-                        "round_trip"]
+        column_names = ["departure_city", "departure_country", "arrival_city", "arrival_country", "t_type", "round_trip"]
         cols = [ord(config_dict[v].lower()) - 97 for v in column_names]
         # Transportation descriptors
         self.t_type_air, self.t_type_train, self.t_type_car, self.t_type_ignored = (
-            [i.strip() for i in config_dict[i].lower().split(',')] for i in
-            ["t_type_air", "t_type_train", "t_type_car", "t_type_ignored"])
+            [i.strip() for i in config_dict[i].lower().split(",")] for i in ["t_type_air", "t_type_train", "t_type_car", "t_type_ignored"]
+        )
 
         # load sheet
         # noinspection PyTypeChecker
@@ -73,6 +72,7 @@ class TravelData:
 @dataclass
 class CustomLocation:
     """Store a location, serializable"""
+
     address: str
     latitude: float
     longitude: float
@@ -81,13 +81,12 @@ class CustomLocation:
     @classmethod
     def from_location(cls, loc: geopy.location.Location) -> CustomLocation:
         """init from geopy location"""
-        return cls(loc.address, loc.latitude, loc.longitude,
-                   loc.raw.get("components", {}).get("ISO_3166-1_alpha-2", None))
+        return cls(loc.address, loc.latitude, loc.longitude, loc.raw.get("components", {}).get("ISO_3166-1_alpha-2", None))
 
     @classmethod
     def from_json(cls, data: dict) -> CustomLocation:
         """init from json dict"""
-        return cls(data['address'], data["latitude"], data['longitude'], data["countryCode"])
+        return cls(data["address"], data["latitude"], data["longitude"], data["countryCode"])
 
 
 class GeoDistanceCalculator:
@@ -141,11 +140,11 @@ class GeoDistanceCalculator:
     def geodesic_distance(loc1: CustomLocation, loc2: CustomLocation) -> geopy.distance.geodesic:
         """geodesic distance between two locations"""
         return geodesic(
-            (loc1.latitude, loc1.longitude), (loc2.latitude, loc2.longitude),
+            (loc1.latitude, loc1.longitude),
+            (loc2.latitude, loc2.longitude),
         )
 
-    def get_geodesic_distance_between(self, loc1: str, loc2: str) -> tuple[
-        float | None, CustomLocation, CustomLocation]:
+    def get_geodesic_distance_between(self, loc1: str, loc2: str) -> tuple[float | None, CustomLocation, CustomLocation]:
         """get the geo distance (km) between two places from their address
 
         :returns (distance, geocode loc1, geocode loc2)
@@ -195,8 +194,9 @@ class EmissionCalculator:
         # Apply the compute function, which computes the emissions ect.
         self.compute(tv_data, out)
 
-    def get_co2e_from_distance(self, dist_km: float, transport_type: str, geo_departure: CustomLocation,
-                               geo_arrival: CustomLocation, is_round_trip: bool) -> tuple[float, float, str]:
+    def get_co2e_from_distance(
+        self, dist_km: float, transport_type: str, geo_departure: CustomLocation, geo_arrival: CustomLocation, is_round_trip: bool
+    ) -> tuple[float, float, str]:
         """get co2e (kg) from data
         :returns (CO2e in kg, uncertainty in kg, transport type used)"""
         if transport_type == "plane":  # plane
@@ -217,7 +217,7 @@ class EmissionCalculator:
             corrected_distance = self.train_geodesic_correction * dist_km
             EF_uncertainty = self.EF_train_uncertainty
             # determine the associated emission factor. For trains, we distinguish if both cities are in France or not, to use SNCF's emission factors or European ones
-            if (geo_departure.countryCode == 'FR') and (geo_arrival.countryCode == 'FR'):  # from AND to france
+            if (geo_departure.countryCode == "FR") and (geo_arrival.countryCode == "FR"):  # from AND to france
                 if corrected_distance < self.d_TER_TGV_km:  # it is a TER not a TGV
                     EF = self.EF_french_TER
                     used_ttype = "train (TER, FR)"
@@ -226,7 +226,7 @@ class EmissionCalculator:
                     EF = self.EF_french_TGV
                     used_ttype = "train (FR)"
 
-            elif (geo_departure.countryCode == 'FR') or (geo_arrival.countryCode == 'FR'):  # from OR to france
+            elif (geo_departure.countryCode == "FR") or (geo_arrival.countryCode == "FR"):  # from OR to france
                 EF = self.EF_half_french_trains
                 used_ttype = "train (half-FR)"
             else:
@@ -242,10 +242,10 @@ class EmissionCalculator:
 
         else:
             raise ValueError
-        
+
         if is_round_trip:
             corrected_distance *= 2
-        
+
         emissions = corrected_distance * EF  # in kg
         uncertainty = emissions * EF_uncertainty  # in kg
 
@@ -255,14 +255,11 @@ class EmissionCalculator:
         """compute emissions from a single trip"""
         logger.debug(f"computing one trip {row.departure_city} -> {row.arrival_city}")
 
-        departure_str = f"{row.departure_city} ({row.departure_country})" if isinstance(row.departure_country,
-                                                                                        str) else row.departure_city
-        arrival_str = f"{row.arrival_city} ({row.arrival_country})" if isinstance(row.arrival_country,
-                                                                                  str) else row.arrival_city
+        departure_str = f"{row.departure_city} ({row.departure_country})" if isinstance(row.departure_country, str) else row.departure_city
+        arrival_str = f"{row.arrival_city} ({row.arrival_country})" if isinstance(row.arrival_country, str) else row.arrival_city
 
         try:
-            dist_km, geo_departure, geo_arrival = self.dist_calculator.get_geodesic_distance_between(departure_str,
-                                                                                                     arrival_str)
+            dist_km, geo_departure, geo_arrival = self.dist_calculator.get_geodesic_distance_between(departure_str, arrival_str)
         except ValueError as e:
             logger.error(e)
             return None
@@ -274,23 +271,27 @@ class EmissionCalculator:
         # Handle input errors
         if dist_km > self.threshold_force_plane:
             transport_type = "plane"
-        
-        is_round_trip = row.round_trip.lower() in ['oui', "yes", 'o', 'y']
-        
-        co2e_emissions, uncertainty, used_transport_type = self.get_co2e_from_distance(dist_km, transport_type,
-                                                                                       geo_departure,
-                                                                                       geo_arrival, is_round_trip)
+
+        is_round_trip = row.round_trip.lower() in ["oui", "yes", "o", "y"]
+
+        co2e_emissions, uncertainty, used_transport_type = self.get_co2e_from_distance(dist_km, transport_type, geo_departure, geo_arrival, is_round_trip)
 
         final_distance_km = dist_km * 2 if is_round_trip else dist_km
 
-        logger.debug(
-            f"One-way emissions from {departure_str} to {arrival_str} ({dist_km:.0f} km) by {used_transport_type} is {co2e_emissions:.1f} kg C02e")
+        logger.debug(f"One-way emissions from {departure_str} to {arrival_str} ({dist_km:.0f} km) by {used_transport_type} is {co2e_emissions:.1f} kg C02e")
 
         return pd.Series(
-            data=[dist_km, final_distance_km, co2e_emissions, geo_departure.countryCode, geo_arrival.countryCode,
-                  used_transport_type, uncertainty],
-            index=["one_way_dist_km", "final_dist_km", "co2e_emissions_kg", "departure_countrycode",
-                   "arrival_countrycode", "transport_for_emissions_detailed", "uncertainty"])
+            data=[dist_km, final_distance_km, co2e_emissions, geo_departure.countryCode, geo_arrival.countryCode, used_transport_type, uncertainty],
+            index=[
+                "one_way_dist_km",
+                "final_dist_km",
+                "co2e_emissions_kg",
+                "departure_countrycode",
+                "arrival_countrycode",
+                "transport_for_emissions_detailed",
+                "uncertainty",
+            ],
+        )
 
     def compute(self, tv_data: TravelData, output_path: str | Path):
         """compute emissions for a TravelData and outputs the result as a spreadsheet <output_path>"""
@@ -301,26 +302,33 @@ class EmissionCalculator:
         # Compute emissions row by row
         df_emissions = df_data.apply(self.compute_emissions_one_row, axis=1)
 
-        self.dist_calculator.print_usage()  # Print the API and cache usage 
+        self.dist_calculator.print_usage()  # Print the API and cache usage
         self.dist_calculator.save_cache(force=True)  # Synchronise the cache to the disk
 
         df_output = pd.concat((df_data, df_emissions), axis=1)
 
         # Format the results
-        df_output = df_output.drop('transport_for_emissions',
-                                   axis=1)  # the information of the main transport type is already in transport_for_emissions_detailed
+        df_output = df_output.drop(
+            "transport_for_emissions", axis=1
+        )  # the information of the main transport type is already in transport_for_emissions_detailed
         df_output = df_output.round({"one_way_dist_km": 0, "final_dist_km": 0, "co2e_emissions_kg": 1})
-        df_output = df_output.rename(columns={"departure_city": "Départ (ville)", "departure_country": "Départ (pays)",
-                                              "arrival_city": "Arrivée (ville)", "arrival_country": "Arrivée (pays)",
-                                              "t_type": "Transport", "round_trip": "A/R",
-                                              "one_way_dist_km": "Distance (one-way, km)",
-                                              "final_dist_km": "Distance totale (km)",
-                                              "co2e_emissions_kg": "CO2e emissions (kg)",
-                                              "departure_countrycode": "Code pays départ",
-                                              "arrival_countrycode": "Code pays arrivée",
-                                              "transport_for_emissions_detailed": "Transport utilisé pour calcul",
-                                              "uncertainty": "Incertitude (kg)"})
+        df_output = df_output.rename(
+            columns={
+                "departure_city": "Départ (ville)",
+                "departure_country": "Départ (pays)",
+                "arrival_city": "Arrivée (ville)",
+                "arrival_country": "Arrivée (pays)",
+                "t_type": "Transport",
+                "round_trip": "A/R",
+                "one_way_dist_km": "Distance (one-way, km)",
+                "final_dist_km": "Distance totale (km)",
+                "co2e_emissions_kg": "CO2e emissions (kg)",
+                "departure_countrycode": "Code pays départ",
+                "arrival_countrycode": "Code pays arrivée",
+                "transport_for_emissions_detailed": "Transport utilisé pour calcul",
+                "uncertainty": "Incertitude (kg)",
+            }
+        )
 
         # Save to file
-        df_output.to_excel(str(output_path), sheet_name=tv_data.sheet_name, float_format="%.1f", freeze_panes=(0, 1),
-                           index=False)
+        df_output.to_excel(str(output_path), sheet_name=tv_data.sheet_name, float_format="%.1f", freeze_panes=(0, 1), index=False)
