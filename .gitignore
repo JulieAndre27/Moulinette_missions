@@ -5,4 +5,4 @@
 /Data/geocache.json
 
 # Temp files
-/Data/.~lock.*
+/Data/*/.~lock.*
