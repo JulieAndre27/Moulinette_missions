@@ -185,7 +185,7 @@ class EmissionCalculator:
 
         self.compute(tv_data, out)
 
-    def get_co2e_from_distance(self, dist_km: float, transport_type: int, geo_departure: CustomLocation, geo_arrival: CustomLocation) -> tuple[float, str]:
+    def get_co2e_from_distance(self, dist_km: float, transport_type: str, geo_departure: CustomLocation, geo_arrival: CustomLocation) -> tuple[float, str]:
         """get co2e (kg) from data
 
         :returns (CO2e in kg, transport type used)"""
@@ -238,13 +238,11 @@ class EmissionCalculator:
 
         transport_type = row.transport_for_emissions
         # Handle unknown transportation
-        try:
-            transport_type = int(transport_type)
-        except ValueError:
-            transport_type = 1 if dist_km < self.threshold_unknown_transportation else 0
+        if not isinstance(transport_type, str):
+            transport_type = "train" if dist_km < self.threshold_unknown_transportation else "plane"
         # Handle input errors
         if dist_km > self.threshold_force_plane:
-            transport_type = 0
+            transport_type = "plane"
 
         co2e_emissions, used_transport_type = self.get_co2e_from_distance(dist_km, transport_type, geo_departure, geo_arrival)
 
