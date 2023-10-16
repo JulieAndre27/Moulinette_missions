@@ -8,6 +8,7 @@ from pathlib import Path
 import pandas as pd
 
 from Libs.EasyEnums import Enm
+from Libs.Excel import auto_resize
 from Libs.Geo import CustomLocation, GeoDistanceCalculator
 
 logger = logging.getLogger(__name__)
@@ -169,7 +170,7 @@ def format_emissions_df(df_emissions: pd.DataFrame) -> pd.DataFrame:
     df_output = df_emissions.drop(
         [Enm.COL_MAIN_TRANSPORT, Enm.COL_DEPARTURE_COUNTRY, Enm.COL_ARRIVAL_COUNTRY, Enm.COL_DIST_ONE_WAY], axis=1
     )  # the information of the main transport type is already in transport_for_emissions_detailed
-    df_output = df_output.round({Enm.COL_DIST_ONE_WAY: 0, Enm.COL_DIST_TOTAL: 0, Enm.COL_EMISSIONS: 1})
+    df_output = df_output.round({Enm.COL_DIST_ONE_WAY: 0, Enm.COL_DIST_TOTAL: 0, Enm.COL_EMISSIONS: 1, Enm.COL_EMISSION_UNCERTAINTY: 1})
     df_output.insert(0, Enm.COL_CREDITS, df_output.attrs["credits"])
     df_output = df_output[  # reorder columns
         [
@@ -191,19 +192,19 @@ def format_emissions_df(df_emissions: pd.DataFrame) -> pd.DataFrame:
     df_output = df_output.rename(  # rename columns
         columns={
             Enm.COL_CREDITS: "Crédits",
-            Enm.COL_MISSION_ID: "N° mission",
-            Enm.COL_DEPARTURE_DATE: "Départ (date)",
-            Enm.COL_DEPARTURE_CITY: "Départ (ville)",
-            Enm.COL_DEPARTURE_COUNTRYCODE: "Départ (pays)",
-            Enm.COL_ARRIVAL_CITY: "Arrivée (ville)",
-            Enm.COL_ARRIVAL_COUNTRYCODE: "Arrivée (pays)",
+            Enm.COL_MISSION_ID: f"N°\nmission",
+            Enm.COL_DEPARTURE_DATE: f"Départ\n(date)",
+            Enm.COL_DEPARTURE_CITY: f"Départ\n(ville)",
+            Enm.COL_DEPARTURE_COUNTRYCODE: f"Départ\n(pays)",
+            Enm.COL_ARRIVAL_CITY: f"Arrivée\n(ville)",
+            Enm.COL_ARRIVAL_COUNTRYCODE: f"Arrivée\n(pays)",
             Enm.COL_TRANSPORT_TYPE: "Transport",
             Enm.COL_ROUND_TRIP: "A/R",
-            Enm.COL_DIST_ONE_WAY: "Distance (one-way, km)",
-            Enm.COL_DIST_TOTAL: "Distance totale (km)",
-            Enm.COL_EMISSIONS: "CO2e emissions (kg)",
-            Enm.COL_EMISSION_TRANSPORT: "Transport utilisé pour calcul",
-            Enm.COL_EMISSION_UNCERTAINTY: "Incertitude (kg)",
+            Enm.COL_DIST_ONE_WAY: f"Distance\n(one-way, km)",
+            Enm.COL_DIST_TOTAL: f"Distance\ntotale (km)",
+            Enm.COL_EMISSIONS: f"CO2e emissions\n(kg)",
+            Enm.COL_EMISSION_TRANSPORT: f"Transport utilisé\npour calcul",
+            Enm.COL_EMISSION_UNCERTAINTY: f"Incertitude\n(±kg)",
         }
     )
 
@@ -217,12 +218,13 @@ def save_to_file(df: pd.DataFrame, output_path: str | Path) -> None:
     sheet_name = df.attrs["sheet_name"]
     with pd.ExcelWriter(str(output_path), engine="xlsxwriter") as writer:
         df.to_excel(writer, sheet_name=sheet_name, float_format="%.1f", freeze_panes=(0, 1), index=False)
+        workbook = writer.book
+        worksheet = writer.sheets[sheet_name]
 
-        # Auto-resize each column
-        worksheet = writer.sheets[sheet_name]  # pull worksheet object
-        for idx, col in enumerate(df):  # loop through all columns
-            series = df[col]
-            max_len = (
-                max((series.astype(str).map(len).max(), len(str(series.name)))) + 1  # len of largest item  # len of column name/header
-            )  # adding a little extra space
-            worksheet.set_column(idx, idx, max_len)  # set column width
+        auto_resize(worksheet, df)
+
+        header_format = workbook.add_format({"text_wrap": True})
+
+        # Iterate through the column names and set them as headers
+        for col_num, value in enumerate(df.columns):
+            worksheet.write(0, col_num, value, header_format)

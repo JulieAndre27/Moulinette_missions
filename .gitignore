@@ -6,3 +6,6 @@
 
 # Temp files
 /Data/*/.~lock.*
+
+# Generated files
+/Data/Generated
