@@ -170,6 +170,7 @@ def format_emissions_df(df_emissions: pd.DataFrame) -> pd.DataFrame:
     df_output = df_output.round({Enm.COL_DIST_ONE_WAY: 0, Enm.COL_DIST_TOTAL: 0, Enm.COL_EMISSIONS: 1})
     df_output = df_output.rename(
         columns={
+            Enm.COL_MISSION_ID: "N° mission",
             Enm.COL_DEPARTURE_CITY: "Départ (ville)",
             Enm.COL_DEPARTURE_COUNTRY: "Départ (pays)",
             Enm.COL_ARRIVAL_CITY: "Arrivée (ville)",
@@ -192,4 +193,16 @@ def format_emissions_df(df_emissions: pd.DataFrame) -> pd.DataFrame:
 def save_to_file(df: pd.DataFrame, output_path: str | Path) -> None:
     """Save dataframe to file"""
     assert str(output_path).endswith(".xlsx"), "Output must be in .xlsx format"
-    df.to_excel(str(output_path), sheet_name=df.attrs["sheet_name"], float_format="%.1f", freeze_panes=(0, 1), index=False)
+
+    sheet_name = df.attrs["sheet_name"]
+    with pd.ExcelWriter(str(output_path), engine="xlsxwriter") as writer:
+        df.to_excel(writer, sheet_name=sheet_name, float_format="%.1f", freeze_panes=(0, 1), index=False)
+
+        # Auto-resize each column
+        worksheet = writer.sheets[sheet_name]  # pull worksheet object
+        for idx, col in enumerate(df):  # loop through all columns
+            series = df[col]
+            max_len = (
+                max((series.astype(str).map(len).max(), len(str(series.name)))) + 1  # len of largest item  # len of column name/header
+            )  # adding a little extra space
+            worksheet.set_column(idx, idx, max_len)  # set column width
