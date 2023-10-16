@@ -44,6 +44,12 @@ class Enm:
     # Custom column names
     COL_MAIN_TRANSPORT = "main_transport"  # the main transportation method used for computing emissions
     COL_DIST_ONE_WAY = "one_way_dist_km"
+    COL_DIST_TOTAL = "final_dist_km"
+    COL_EMISSIONS = "co2e_emissions_kg"
+    COL_DEPARTURE_COUNTRYCODE = "departure_countrycode"
+    COL_ARRIVAL_COUNTRYCODE = "arrival_countrycode"
+    COL_EMISSION_TRANSPORT = "transport_for_emissions_detailed"
+    COL_EMISSION_UNCERTAINTY = "emission_uncertainty"
 
     # Transport types from config
     TTYPES_PLANE = "t_types_plane"
@@ -354,19 +360,18 @@ class EmissionCalculator:
         return pd.Series(
             data=[one_way_dist_km, final_distance_km, co2e_emissions, loc_departure.countryCode, loc_arrival.countryCode, emission_ttype, uncertainty],
             index=[
-                "one_way_dist_km",
-                "final_dist_km",
-                "co2e_emissions_kg",
-                "departure_countrycode",
-                "arrival_countrycode",
-                "transport_for_emissions_detailed",
-                "uncertainty",
+                Enm.COL_DIST_ONE_WAY,
+                Enm.COL_DIST_TOTAL,
+                Enm.COL_EMISSIONS,
+                Enm.COL_DEPARTURE_COUNTRYCODE,
+                Enm.COL_ARRIVAL_COUNTRYCODE,
+                Enm.COL_EMISSION_TRANSPORT,
+                Enm.COL_EMISSION_UNCERTAINTY,
             ],
         )
 
     def compute(self, tv_data: MissionsData, output_path: str | Path):
         """compute emissions for a TravelData and outputs the result as a spreadsheet <output_path>"""
-        # Create a new dataframe (output data) by first copying the input dataframe
         df_data = tv_data.data
 
         # Compute emissions row by row
@@ -379,7 +384,7 @@ class EmissionCalculator:
 
         # Format the results
         df_output = df_output.drop(Enm.COL_MAIN_TRANSPORT, axis=1)  # the information of the main transport type is already in transport_for_emissions_detailed
-        df_output = df_output.round({"one_way_dist_km": 0, "final_dist_km": 0, "co2e_emissions_kg": 1})
+        df_output = df_output.round({Enm.COL_DIST_ONE_WAY: 0, Enm.COL_DIST_TOTAL: 0, Enm.COL_EMISSIONS: 1})
         df_output = df_output.rename(
             columns={
                 Enm.COL_DEPARTURE_CITY: "Départ (ville)",
@@ -388,13 +393,13 @@ class EmissionCalculator:
                 Enm.COL_ARRIVAL_COUNTRY: "Arrivée (pays)",
                 Enm.COL_TRANSPORT_TYPE: "Transport",
                 Enm.COL_ROUND_TRIP: "A/R",
-                "one_way_dist_km": "Distance (one-way, km)",
-                "final_dist_km": "Distance totale (km)",
-                "co2e_emissions_kg": "CO2e emissions (kg)",
-                "departure_countrycode": "Code pays départ",
-                "arrival_countrycode": "Code pays arrivée",
-                "transport_for_emissions_detailed": "Transport utilisé pour calcul",
-                "uncertainty": "Incertitude (kg)",
+                Enm.COL_DIST_ONE_WAY: "Distance (one-way, km)",
+                Enm.COL_DIST_TOTAL: "Distance totale (km)",
+                Enm.COL_EMISSIONS: "CO2e emissions (kg)",
+                Enm.COL_DEPARTURE_COUNTRYCODE: "Code pays départ",
+                Enm.COL_ARRIVAL_COUNTRYCODE: "Code pays arrivée",
+                Enm.COL_EMISSION_TRANSPORT: "Transport utilisé pour calcul",
+                Enm.COL_EMISSION_UNCERTAINTY: "Incertitude (kg)",
             }
         )
 
