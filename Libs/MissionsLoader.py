@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 
-def load_data(data_path: str | Path, conf_path: str | Path) -> pd.DataFrame:
+def load_data(data_path: Path, conf_path: Path) -> pd.DataFrame:
     """load data from excel/ods according to the conf
     corrects the data to account for wrong round trips
     :param data_path: path to the .xlsx mission data

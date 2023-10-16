@@ -4,10 +4,11 @@ from typing import Any
 import pandas as pd
 
 
-def auto_resize(worksheet: Any, df: pd.DataFrame) -> None:
+def auto_resize_columns(worksheet: Any, df: pd.DataFrame, cell_format=None) -> None:
     """auto-resize rows and columns
     :param worksheet
     :param df: the corresponding pandas dataframe
+    :param cell_format
     """
     len_newline = lambda s: max(len(i) for i in s.split("\n"))
 
@@ -17,10 +18,13 @@ def auto_resize(worksheet: Any, df: pd.DataFrame) -> None:
         max_len = (
             max(series.astype(str).map(len_newline).max(), len_newline(str(series.name))) + 1  # len of largest item  # len of column name/header
         )  # adding a little extra space
-        worksheet.set_column(idx, idx, max_len)  # set column width
+        worksheet.set_column(idx, idx, max_len, cell_format)  # set column width
 
-    # adjust rows
-    for idx, row in df.iterrows():
-        max_len = row.astype(str).map(lambda s: s.count("\n")).max() + 1
-        worksheet.set_row(int(idx) + 1, max(1, max_len) * 15)
-    worksheet.set_row(0, 15 * (max(str(col).count("\n") for col in df.columns) + 1))
+
+def format_headers(header_format: dict, worksheet: Any, df: pd.DataFrame, offset: int = 0) -> None:
+    """format the headers"""
+    worksheet.set_row(offset, 15 * (max(str(col).count("\n") for col in df.columns) + 1))  # resize
+
+    # format each cell
+    for i, col in enumerate(df.columns):
+        worksheet.write(offset, i, col, header_format)
