@@ -5,12 +5,12 @@ class Enm:
     """Easy Enums"""
 
     # Values of roundtrip in spreadsheet
-    ROUNDTRIP_CORRECTED = "non [corr.]"
     ROUNDTRIP_YES = "oui"
     ROUNDTRIP_NO = "non"
 
     # Column names from config
     COL_MISSION_ID = "mission_id"
+    COL_DEPARTURE_DATE = "departure_date"
     COL_DEPARTURE_CITY = "departure_city"
     COL_DEPARTURE_COUNTRY = "departure_country"
     COL_ARRIVAL_CITY = "arrival_city"
@@ -18,6 +18,7 @@ class Enm:
     COL_TRANSPORT_TYPE = "t_type"
     COL_ROUND_TRIP = "round_trip"
     # Custom column names
+    COL_CREDITS = "credits"
     COL_MAIN_TRANSPORT = "main_transport"  # the main transportation method used for computing emissions
     COL_DIST_ONE_WAY = "one_way_dist_km"
     COL_DIST_TOTAL = "final_dist_km"

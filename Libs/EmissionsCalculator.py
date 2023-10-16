@@ -166,22 +166,42 @@ def compute_emissions_df(df_data: pd.DataFrame) -> pd.DataFrame:
 def format_emissions_df(df_emissions: pd.DataFrame) -> pd.DataFrame:
     """format the output of <compute_emissions_df> to expected lab format"""
     # Format the results
-    df_output = df_emissions.drop(Enm.COL_MAIN_TRANSPORT, axis=1)  # the information of the main transport type is already in transport_for_emissions_detailed
+    df_output = df_emissions.drop(
+        [Enm.COL_MAIN_TRANSPORT, Enm.COL_DEPARTURE_COUNTRY, Enm.COL_ARRIVAL_COUNTRY, Enm.COL_DIST_ONE_WAY], axis=1
+    )  # the information of the main transport type is already in transport_for_emissions_detailed
     df_output = df_output.round({Enm.COL_DIST_ONE_WAY: 0, Enm.COL_DIST_TOTAL: 0, Enm.COL_EMISSIONS: 1})
-    df_output = df_output.rename(
+    df_output.insert(0, Enm.COL_CREDITS, df_output.attrs["credits"])
+    df_output = df_output[  # reorder columns
+        [
+            Enm.COL_CREDITS,
+            Enm.COL_MISSION_ID,
+            Enm.COL_DEPARTURE_DATE,
+            Enm.COL_DEPARTURE_CITY,
+            Enm.COL_DEPARTURE_COUNTRYCODE,
+            Enm.COL_ARRIVAL_CITY,
+            Enm.COL_ARRIVAL_COUNTRYCODE,
+            Enm.COL_ROUND_TRIP,
+            Enm.COL_TRANSPORT_TYPE,
+            Enm.COL_EMISSION_TRANSPORT,
+            Enm.COL_DIST_TOTAL,
+            Enm.COL_EMISSIONS,
+            Enm.COL_EMISSION_UNCERTAINTY,
+        ]
+    ]
+    df_output = df_output.rename(  # rename columns
         columns={
+            Enm.COL_CREDITS: "Crédits",
             Enm.COL_MISSION_ID: "N° mission",
+            Enm.COL_DEPARTURE_DATE: "Départ (date)",
             Enm.COL_DEPARTURE_CITY: "Départ (ville)",
-            Enm.COL_DEPARTURE_COUNTRY: "Départ (pays)",
+            Enm.COL_DEPARTURE_COUNTRYCODE: "Départ (pays)",
             Enm.COL_ARRIVAL_CITY: "Arrivée (ville)",
-            Enm.COL_ARRIVAL_COUNTRY: "Arrivée (pays)",
+            Enm.COL_ARRIVAL_COUNTRYCODE: "Arrivée (pays)",
             Enm.COL_TRANSPORT_TYPE: "Transport",
             Enm.COL_ROUND_TRIP: "A/R",
             Enm.COL_DIST_ONE_WAY: "Distance (one-way, km)",
             Enm.COL_DIST_TOTAL: "Distance totale (km)",
             Enm.COL_EMISSIONS: "CO2e emissions (kg)",
-            Enm.COL_DEPARTURE_COUNTRYCODE: "Code pays départ",
-            Enm.COL_ARRIVAL_COUNTRYCODE: "Code pays arrivée",
             Enm.COL_EMISSION_TRANSPORT: "Transport utilisé pour calcul",
             Enm.COL_EMISSION_UNCERTAINTY: "Incertitude (kg)",
         }

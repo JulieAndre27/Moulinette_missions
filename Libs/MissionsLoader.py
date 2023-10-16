@@ -31,6 +31,7 @@ def load_data(data_path: str | Path, conf_path: str | Path) -> pd.DataFrame:
     # column letter to index
     column_names = [
         Enm.COL_MISSION_ID,
+        Enm.COL_DEPARTURE_DATE,
         Enm.COL_DEPARTURE_CITY,
         Enm.COL_DEPARTURE_COUNTRY,
         Enm.COL_ARRIVAL_CITY,
@@ -44,6 +45,7 @@ def load_data(data_path: str | Path, conf_path: str | Path) -> pd.DataFrame:
     # noinspection PyTypeChecker
     df_data = pd.read_excel(data_path, sheet_name=sheet_name, usecols=column_ids, names=column_names)
     df_data.attrs["sheet_name"] = sheet_name
+    df_data.attrs["credits"] = config_dict["credits"]
 
     # determine computed transport type
     unknown_transport_types = set()
@@ -63,7 +65,13 @@ def _fix_round_trips(data: pd.DataFrame) -> None:
     If a mission ID has several trips, set them all to one-way"""
     data[Enm.COL_ROUND_TRIP] = data[Enm.COL_ROUND_TRIP].apply(str.lower)
     duplicated_mission_loc = data[Enm.COL_MISSION_ID].duplicated(keep=False)
-    data.loc[duplicated_mission_loc & (data[Enm.COL_ROUND_TRIP] == Enm.ROUNDTRIP_YES), Enm.COL_ROUND_TRIP] = Enm.ROUNDTRIP_CORRECTED
+    wrong_roundtrips = duplicated_mission_loc & (data[Enm.COL_ROUND_TRIP] == Enm.ROUNDTRIP_YES)
+
+    N_wrong_roundtrips = wrong_roundtrips.sum()
+    if N_wrong_roundtrips > 0:
+        logger.info(f"Corrected {N_wrong_roundtrips} round_trips")
+
+    data.loc[wrong_roundtrips, Enm.COL_ROUND_TRIP] = Enm.ROUNDTRIP_NO
 
 
 def _get_main_transport(row: pd.Series, config_dict: dict, unknown_transport_types: set) -> str | None:
