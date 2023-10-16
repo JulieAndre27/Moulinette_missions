@@ -746,7 +746,18 @@ platformdirs = ">=3.9.1,<4"
 docs = ["furo (>=2023.7.26)", "proselint (>=0.13)", "sphinx (>=7.1.2)", "sphinx-argparse (>=0.4)", "sphinxcontrib-towncrier (>=0.2.1a0)", "towncrier (>=23.6)"]
 test = ["covdefaults (>=2.3)", "coverage (>=7.2.7)", "coverage-enable-subprocess (>=1)", "flaky (>=3.7)", "packaging (>=23.1)", "pytest (>=7.4)", "pytest-env (>=0.8.2)", "pytest-freezer (>=0.4.8)", "pytest-mock (>=3.11.1)", "pytest-randomly (>=3.12)", "pytest-timeout (>=2.1)", "setuptools (>=68)", "time-machine (>=2.10)"]
 
+[[package]]
+name = "xlsxwriter"
+version = "3.1.8"
+description = "A Python module for creating Excel XLSX files."
+optional = false
+python-versions = ">=3.6"
+files = [
+    {file = "XlsxWriter-3.1.8-py3-none-any.whl", hash = "sha256:2d8d1f392b3e041adf90042dd2f7b5f7468181a45e5e9a7d8376e64b374104f1"},
+    {file = "XlsxWriter-3.1.8.tar.gz", hash = "sha256:059d0786fbfa3055588e81e9d5acf4ace28394bf09353a31ae2cae635740fc15"},
+]
+
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.11,<3.12"
-content-hash = "2e2c865deb689df29b80835195b9652c1a5a573510774872b79c54865a8edb64"
+content-hash = "fcf1a55a941740bd44cab697f014e7563d1726a7cda2af8fcd78417a6d93c6c8"
