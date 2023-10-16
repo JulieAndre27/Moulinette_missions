@@ -7,9 +7,14 @@ import pandas as pd
 from Libs.EmissionsCalculator import compute_emissions_df, save_to_file
 from Libs.MissionsLoader import load_data
 
-in_files = ["MIS_2022_v3_aller_simple.xlsx", "Missions_LMD_ENS_2022.xlsx"]  # Data spreadsheet
-config_files = ["config_file_LMD_CNRS_2022.cfg", "config_file_LMD_ENS_2022.cfg"]  # config file
-out_file = "emissions_combined.xlsx"
+in_files = ["MIS_2021.xlsx"]
+config_files = ["config_file_LMD_CNRS_2021.cfg"]
+out_file = "MIS_2021_CO2.xlsx"
+
+# you can also put several files :
+# in_files = ["MIS_2022_v3_aller_simple.xlsx", "Missions_LMD_ENS_2022.xlsx"]  # Data spreadsheet
+# config_files = ["config_file_LMD_CNRS_2022.cfg", "config_file_LMD_ENS_2022.cfg"]  # config file
+# out_file = "emissions_combined.xlsx"
 
 # No need to edit below
 logging.basicConfig()  # Setup printing of messages
