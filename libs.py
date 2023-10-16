@@ -20,7 +20,59 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 
-class TravelData:
+def split_strip_lower(s: str, splitter: str = ",") -> list[str]:
+    """lower then split <s> with <splitter>, and strip each member"""
+    return [i.strip() for i in s.lower().split(splitter)]
+
+
+class Enm:
+    """Easy Enums"""
+
+    # Values of roundtrip in spreadsheet
+    ROUNDTRIP_CORRECTED = "non [corr.]"
+    ROUNDTRIP_YES = "oui"
+    ROUNDTRIP_NO = "non"
+
+    # Column names from config
+    COL_MISSION_ID = "mission_id"
+    COL_DEPARTURE_CITY = "departure_city"
+    COL_DEPARTURE_COUNTRY = "departure_country"
+    COL_ARRIVAL_CITY = "arrival_city"
+    COL_ARRIVAL_COUNTRY = "arrival_country"
+    COL_TRANSPORT_TYPE = "t_type"
+    COL_ROUND_TRIP = "round_trip"
+    # Custom column names
+    COL_MAIN_TRANSPORT = "main_transport"  # the main transportation method used for computing emissions
+    COL_DIST_ONE_WAY = "one_way_dist_km"
+    COL_DIST_TOTAL = "final_dist_km"
+    COL_EMISSIONS = "co2e_emissions_kg"
+    COL_DEPARTURE_COUNTRYCODE = "departure_countrycode"
+    COL_ARRIVAL_COUNTRYCODE = "arrival_countrycode"
+    COL_EMISSION_TRANSPORT = "transport_for_emissions_detailed"
+    COL_EMISSION_UNCERTAINTY = "emission_uncertainty"
+
+    # Transport types from config
+    TTYPES_PLANE = "t_types_plane"
+    TTYPES_TRAIN = "t_types_train"
+    TTYPES_CAR = "t_types_car"
+    TTYPES_IGNORED = "t_types_ignored"
+
+    # Main transport types
+    MAIN_TRANSPORT_PLANE = "plane"
+    MAIN_TRANSPORT_TRAIN = "train"
+    MAIN_TRANSPORT_CAR = "car"
+    # Emission transport_types
+    EF_TRANSPORT_PLANE_SHORT = "plane (short)"
+    EF_TRANSPORT_PLANE_MED = "plane (med)"
+    EF_TRANSPORT_PLANE_LONG = "plane (long)"
+    EF_TRANSPORT_TRAIN_TER = "train (TER, FR)"
+    EF_TRANSPORT_TRAIN_FR = "train (FR)"
+    EF_TRANSPORT_TRAIN_HALF_FR = "train (half-FR)"
+    EF_TRANSPORT_TRAIN_EU = "train (EU)"
+    EF_TRANSPORT_CAR = "car"
+
+
+class MissionsData:
     """load data from excel/ods according to the conf"""
 
     def __init__(self, data_path: str | Path, conf_path: str | Path):
@@ -33,11 +85,19 @@ class TravelData:
         config_dict = config_dict[self.sheet_name]
 
         # column letter to index
-        column_names = ["departure_city", "departure_country", "arrival_city", "arrival_country", "t_type", "round_trip"]
+        column_names = [
+            Enm.COL_MISSION_ID,
+            Enm.COL_DEPARTURE_CITY,
+            Enm.COL_DEPARTURE_COUNTRY,
+            Enm.COL_ARRIVAL_CITY,
+            Enm.COL_ARRIVAL_COUNTRY,
+            Enm.COL_TRANSPORT_TYPE,
+            Enm.COL_ROUND_TRIP,
+        ]
         cols = [ord(config_dict[v].lower()) - 97 for v in column_names]
         # Transportation descriptors
-        self.t_type_air, self.t_type_train, self.t_type_car, self.t_type_ignored = (
-            [i.strip() for i in config_dict[i].lower().split(",")] for i in ["t_type_air", "t_type_train", "t_type_car", "t_type_ignored"]
+        self.ttypes_air, self.ttypes_train, self.ttypes_car, self.ttypes_ignored = (
+            split_strip_lower(config_dict[i]) for i in [Enm.TTYPES_PLANE, Enm.TTYPES_TRAIN, Enm.TTYPES_CAR, Enm.TTYPES_IGNORED]
         )
 
         # load sheet
@@ -46,27 +106,45 @@ class TravelData:
 
         # determine computed transport type
         self.unknown_transport_types = set()
-        self.data["transport_for_emissions"] = self.data.apply(self.get_transport_for_calculator, axis=1)
-
+        self.data[Enm.COL_MAIN_TRANSPORT] = self.data.apply(self.get_main_transport, axis=1)
         if len(self.unknown_transport_types):
             logger.warning(f"Unknown transport types: {self.unknown_transport_types}")
 
-    def get_transport_for_calculator(self, row: pd.Series) -> str | None:
-        """get transport used for computation"""
-        if isinstance(row.t_type, str):
-            t_type = [i.strip().lower() for i in row.t_type.split(",")]  # used transport modes
-            # Check all existing types
-            for t in t_type:
-                if t not in self.t_type_air and t not in self.t_type_train and t not in self.t_type_car and t not in self.t_type_ignored:
-                    self.unknown_transport_types.add(t)
+        # sanitize data
+        self.fix_round_trips()
 
-            t_id_map = ["plane", "train", "car"]
-            for t_id, t in enumerate([self.t_type_air, self.t_type_train, self.t_type_car]):  # plane > train > car
-                for e in t:  # for each known transportation method
-                    if e in t_type:  # check if used and return
-                        return t_id_map[t_id]
+    def get_main_transport(self, row: pd.Series) -> str | None:
+        """get main transport used for computation of emissions"""
+        if isinstance(row.t_type, str):
+            row_transports = split_strip_lower(row.t_type)  # row's used transport modes
+            # Check that we recognize all existing types
+            for transport in row_transports:
+                if (
+                    transport not in self.ttypes_air
+                    and transport not in self.ttypes_train
+                    and transport not in self.ttypes_car
+                    and transport not in self.ttypes_ignored
+                ):
+                    self.unknown_transport_types.add(transport)
+
+            transport_priority_order = [
+                (self.ttypes_air, Enm.MAIN_TRANSPORT_PLANE),
+                (self.ttypes_train, Enm.MAIN_TRANSPORT_TRAIN),
+                (self.ttypes_car, Enm.MAIN_TRANSPORT_CAR),
+            ]
+            for ttypes, main_transport in transport_priority_order:  # plane > train > car
+                for ttype in ttypes:  # for each known transportation method
+                    if ttype in row_transports:  # check if used and return
+                        return main_transport
 
         return None
+
+    def fix_round_trips(self):
+        """Fix incorrect round trips
+        If a mission ID has several trips, set them all to one-way"""
+        self.data[Enm.COL_ROUND_TRIP] = self.data[Enm.COL_ROUND_TRIP].apply(str.lower)
+        duplicated_mission_loc = self.data[Enm.COL_MISSION_ID].duplicated(keep=False)
+        self.data.loc[duplicated_mission_loc & (self.data[Enm.COL_ROUND_TRIP] == Enm.ROUNDTRIP_YES), Enm.COL_ROUND_TRIP] = Enm.ROUNDTRIP_CORRECTED
 
 
 @dataclass
@@ -158,7 +236,7 @@ class GeoDistanceCalculator:
 class EmissionCalculator:
     """compute emissions for a trip"""
 
-    def __init__(self, tv_data: TravelData, out: str | Path):
+    def __init__(self, data_path: str | Path, conf_path: str | Path, out: str | Path):
         self.dist_calculator = GeoDistanceCalculator()
 
         ## Parameters
@@ -192,53 +270,53 @@ class EmissionCalculator:
         self.threshold_force_plane = 4000  # force plane if distance is too big to avoid input errors
 
         # Apply the compute function, which computes the emissions ect.
-        self.compute(tv_data, out)
+        self.compute(MissionsData(data_path, conf_path), out)
 
     def get_co2e_from_distance(
-        self, dist_km: float, transport_type: str, geo_departure: CustomLocation, geo_arrival: CustomLocation, is_round_trip: bool
+        self, dist_km: float, main_ttype: str, loc_departure: CustomLocation, loc_arrival: CustomLocation, is_round_trip: bool
     ) -> tuple[float, float, str]:
         """get co2e (kg) from data
         :returns (CO2e in kg, uncertainty in kg, transport type used)"""
-        if transport_type == "plane":  # plane
+        if main_ttype == Enm.MAIN_TRANSPORT_PLANE:  # plane
             corrected_distance = dist_km + self.plane_geodesic_correction_offset_km
             EF_uncertainty = self.EF_plane_uncertainty
             # determine the associated emission factor
             if dist_km < self.d_short_distance_plane:
                 EF = self.EF_short_distance_plane
-                used_ttype = "plane (short)"
+                emission_ttype = Enm.EF_TRANSPORT_PLANE_SHORT
             elif dist_km < self.d_medium_distance_plane:
                 EF = self.EF_medium_distance_plane
-                used_ttype = "plane (med)"
+                emission_ttype = Enm.EF_TRANSPORT_PLANE_MED
             else:
                 EF = self.EF_long_distance_plane
-                used_ttype = "plane (long)"
+                emission_ttype = Enm.EF_TRANSPORT_PLANE_LONG
 
-        elif transport_type == "train":  # train
+        elif main_ttype == Enm.MAIN_TRANSPORT_TRAIN:  # train
             corrected_distance = self.train_geodesic_correction * dist_km
             EF_uncertainty = self.EF_train_uncertainty
             # determine the associated emission factor. For trains, we distinguish if both cities are in France or not, to use SNCF's emission factors or European ones
-            if (geo_departure.countryCode == "FR") and (geo_arrival.countryCode == "FR"):  # from AND to france
+            if (loc_departure.countryCode == "FR") and (loc_arrival.countryCode == "FR"):  # from AND to france
                 if corrected_distance < self.d_TER_TGV_km:  # it is a TER not a TGV
                     EF = self.EF_french_TER
-                    used_ttype = "train (TER, FR)"
+                    emission_ttype = Enm.EF_TRANSPORT_TRAIN_TER
                     EF_uncertainty = self.EF_train_TER_uncertainty
                 else:
                     EF = self.EF_french_TGV
-                    used_ttype = "train (FR)"
+                    emission_ttype = Enm.EF_TRANSPORT_TRAIN_FR
 
-            elif (geo_departure.countryCode == "FR") or (geo_arrival.countryCode == "FR"):  # from OR to france
+            elif (loc_departure.countryCode == "FR") or (loc_arrival.countryCode == "FR"):  # from OR to france
                 EF = self.EF_half_french_trains
-                used_ttype = "train (half-FR)"
+                emission_ttype = Enm.EF_TRANSPORT_TRAIN_HALF_FR
             else:
                 EF = self.EF_european_trains
-                used_ttype = "train (EU)"
+                emission_ttype = Enm.EF_TRANSPORT_TRAIN_EU
 
-        elif transport_type == "car":  # car
+        elif main_ttype == Enm.MAIN_TRANSPORT_CAR:  # car
             corrected_distance = self.car_geodesic_correction * dist_km
             EF_uncertainty = self.EF_car_uncertainty
             # determine the associated emission factor
             EF = self.EF_car
-            used_ttype = "car"
+            emission_ttype = Enm.EF_TRANSPORT_CAR
 
         else:
             raise ValueError
@@ -249,54 +327,51 @@ class EmissionCalculator:
         emissions = corrected_distance * EF  # in kg
         uncertainty = emissions * EF_uncertainty  # in kg
 
-        return emissions, uncertainty, used_ttype
+        return emissions, uncertainty, emission_ttype
 
     def compute_emissions_one_row(self, row: pd.Series) -> pd.Series | None:
         """compute emissions from a single trip"""
         logger.debug(f"computing one trip {row.departure_city} -> {row.arrival_city}")
 
-        departure_str = f"{row.departure_city} ({row.departure_country})" if isinstance(row.departure_country, str) else row.departure_city
-        arrival_str = f"{row.arrival_city} ({row.arrival_country})" if isinstance(row.arrival_country, str) else row.arrival_city
+        departure_address = f"{row.departure_city} ({row.departure_country})" if isinstance(row.departure_country, str) else row.departure_city
+        arrival_address = f"{row.arrival_city} ({row.arrival_country})" if isinstance(row.arrival_country, str) else row.arrival_city
+        is_round_trip = row.round_trip == Enm.ROUNDTRIP_YES
+        main_transport = row[Enm.COL_MAIN_TRANSPORT]
 
         try:
-            dist_km, geo_departure, geo_arrival = self.dist_calculator.get_geodesic_distance_between(departure_str, arrival_str)
+            one_way_dist_km, loc_departure, loc_arrival = self.dist_calculator.get_geodesic_distance_between(departure_address, arrival_address)
         except ValueError as e:
             logger.error(e)
             return None
 
-        transport_type = row.transport_for_emissions
         # Handle unknown transportation
-        if not isinstance(transport_type, str):
-            transport_type = "train" if dist_km < self.threshold_unknown_transportation else "plane"
+        if not isinstance(main_transport, str):
+            main_transport = Enm.MAIN_TRANSPORT_TRAIN if one_way_dist_km < self.threshold_unknown_transportation else Enm.MAIN_TRANSPORT_PLANE
         # Handle input errors
-        if dist_km > self.threshold_force_plane:
-            transport_type = "plane"
+        if one_way_dist_km > self.threshold_force_plane:
+            main_transport = Enm.MAIN_TRANSPORT_PLANE
 
-        is_round_trip = row.round_trip.lower() in ["oui", "yes", "o", "y"]
-
-        co2e_emissions, uncertainty, used_transport_type = self.get_co2e_from_distance(dist_km, transport_type, geo_departure, geo_arrival, is_round_trip)
-
-        final_distance_km = dist_km * 2 if is_round_trip else dist_km
-
-        logger.debug(f"One-way emissions from {departure_str} to {arrival_str} ({dist_km:.0f} km) by {used_transport_type} is {co2e_emissions:.1f} kg C02e")
+        co2e_emissions, uncertainty, emission_ttype = self.get_co2e_from_distance(one_way_dist_km, main_transport, loc_departure, loc_arrival, is_round_trip)
+        final_distance_km = one_way_dist_km * 2 if is_round_trip else one_way_dist_km
+        logger.debug(
+            f"{'Round trip' if is_round_trip else 'One-way'} emissions from {departure_address} to {arrival_address} ({final_distance_km:.0f} km) by {emission_ttype} is {co2e_emissions:.1f} kg C02e"
+        )
 
         return pd.Series(
-            data=[dist_km, final_distance_km, co2e_emissions, geo_departure.countryCode, geo_arrival.countryCode, used_transport_type, uncertainty],
+            data=[one_way_dist_km, final_distance_km, co2e_emissions, loc_departure.countryCode, loc_arrival.countryCode, emission_ttype, uncertainty],
             index=[
-                "one_way_dist_km",
-                "final_dist_km",
-                "co2e_emissions_kg",
-                "departure_countrycode",
-                "arrival_countrycode",
-                "transport_for_emissions_detailed",
-                "uncertainty",
+                Enm.COL_DIST_ONE_WAY,
+                Enm.COL_DIST_TOTAL,
+                Enm.COL_EMISSIONS,
+                Enm.COL_DEPARTURE_COUNTRYCODE,
+                Enm.COL_ARRIVAL_COUNTRYCODE,
+                Enm.COL_EMISSION_TRANSPORT,
+                Enm.COL_EMISSION_UNCERTAINTY,
             ],
         )
 
-    def compute(self, tv_data: TravelData, output_path: str | Path):
+    def compute(self, tv_data: MissionsData, output_path: str | Path):
         """compute emissions for a TravelData and outputs the result as a spreadsheet <output_path>"""
-
-        # Create a new dataframe (output data) by first copying the input dataframe
         df_data = tv_data.data
 
         # Compute emissions row by row
@@ -308,25 +383,23 @@ class EmissionCalculator:
         df_output = pd.concat((df_data, df_emissions), axis=1)
 
         # Format the results
-        df_output = df_output.drop(
-            "transport_for_emissions", axis=1
-        )  # the information of the main transport type is already in transport_for_emissions_detailed
-        df_output = df_output.round({"one_way_dist_km": 0, "final_dist_km": 0, "co2e_emissions_kg": 1})
+        df_output = df_output.drop(Enm.COL_MAIN_TRANSPORT, axis=1)  # the information of the main transport type is already in transport_for_emissions_detailed
+        df_output = df_output.round({Enm.COL_DIST_ONE_WAY: 0, Enm.COL_DIST_TOTAL: 0, Enm.COL_EMISSIONS: 1})
         df_output = df_output.rename(
             columns={
-                "departure_city": "Départ (ville)",
-                "departure_country": "Départ (pays)",
-                "arrival_city": "Arrivée (ville)",
-                "arrival_country": "Arrivée (pays)",
-                "t_type": "Transport",
-                "round_trip": "A/R",
-                "one_way_dist_km": "Distance (one-way, km)",
-                "final_dist_km": "Distance totale (km)",
-                "co2e_emissions_kg": "CO2e emissions (kg)",
-                "departure_countrycode": "Code pays départ",
-                "arrival_countrycode": "Code pays arrivée",
-                "transport_for_emissions_detailed": "Transport utilisé pour calcul",
-                "uncertainty": "Incertitude (kg)",
+                Enm.COL_DEPARTURE_CITY: "Départ (ville)",
+                Enm.COL_DEPARTURE_COUNTRY: "Départ (pays)",
+                Enm.COL_ARRIVAL_CITY: "Arrivée (ville)",
+                Enm.COL_ARRIVAL_COUNTRY: "Arrivée (pays)",
+                Enm.COL_TRANSPORT_TYPE: "Transport",
+                Enm.COL_ROUND_TRIP: "A/R",
+                Enm.COL_DIST_ONE_WAY: "Distance (one-way, km)",
+                Enm.COL_DIST_TOTAL: "Distance totale (km)",
+                Enm.COL_EMISSIONS: "CO2e emissions (kg)",
+                Enm.COL_DEPARTURE_COUNTRYCODE: "Code pays départ",
+                Enm.COL_ARRIVAL_COUNTRYCODE: "Code pays arrivée",
+                Enm.COL_EMISSION_TRANSPORT: "Transport utilisé pour calcul",
+                Enm.COL_EMISSION_UNCERTAINTY: "Incertitude (kg)",
             }
         )
 
