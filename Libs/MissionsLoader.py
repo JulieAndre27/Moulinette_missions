@@ -40,6 +40,8 @@ def load_data(data_path: Path, conf_path: Path) -> pd.DataFrame:
         Enm.COL_ROUND_TRIP,
     ]
     column_ids = [ord(config_dict[v].lower()) - 97 for v in column_names]
+    # re-order column_names to match column_ids order
+    column_names = [i[0] for i in sorted(list(zip(column_names, column_ids)), key=lambda x: x[1])]
 
     # load sheet
     # noinspection PyTypeChecker
