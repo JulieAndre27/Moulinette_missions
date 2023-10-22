@@ -149,7 +149,7 @@ def save_to_file(df_raw: pd.DataFrame, output_path: Path) -> None:
             sheet_formatted.write(synth_vertical_offset + i, synth_column + 1, s, transport_id_format)
         sheet_formatted.set_column(synth_column + 1, synth_column + 1, 15, None, {"hidden": True})  # Hide by default
         # Headers
-        synth_headers = ["Nb trajets", "Distance (1000 km)", "Emissions\n(t CO2e)", "Incertitude\n(± t CO2e)"]
+        synth_headers = ["Nb trajets A/R", "Distance (1000 km)", "Emissions\n(t CO2e)", "Incertitude\n(± t CO2e)"]
         synth_header_format = workbook.add_format({"text_wrap": True, "bg_color": "#ffc000", **f_border_align_center})
         for i, s in enumerate(synth_headers):
             sheet_formatted.write(synth_vertical_offset, synth_column + 2 + i, s, synth_header_format)
@@ -158,6 +158,7 @@ def save_to_file(df_raw: pd.DataFrame, output_path: Path) -> None:
         # Cells
         synth_cell_format = workbook.add_format({**f_border_align_center, "num_format": "0.0"})
         synth_cell_format_int = workbook.add_format({**f_border_align_center, "num_format": "0"})
+        synth_column_roundtrip = index_to_column(columns_formatted.index(Enm.COL_ROUND_TRIP))
         synth_column_transport = index_to_column(columns_formatted.index(Enm.COL_EMISSION_TRANSPORT))
         synth_column_distance = index_to_column(columns_formatted.index(Enm.COL_DIST_TOTAL))
         synth_column_emission = index_to_column(columns_formatted.index(Enm.COL_EMISSIONS))
@@ -167,7 +168,7 @@ def save_to_file(df_raw: pd.DataFrame, output_path: Path) -> None:
             sheet_formatted.write_formula(
                 synth_vertical_offset + i + 1,
                 synth_column + 2,
-                f"COUNTIF(${synth_column_transport}:${synth_column_transport}, {column_transport_id}{synth_vertical_offset + 2 + i})",
+                f'(COUNTIF(${synth_column_transport}:${synth_column_transport}, {column_transport_id}{synth_vertical_offset + 2 + i}) + COUNTIFS(${synth_column_transport}:${synth_column_transport}, {column_transport_id}{synth_vertical_offset + 2 + i}, ${synth_column_roundtrip}:${synth_column_roundtrip}, "oui"))/2',
                 synth_cell_format_int,
             )
         for j, col in enumerate([synth_column_distance, synth_column_emission, synth_column_uncertainty]):  # other columns
@@ -249,7 +250,7 @@ def save_to_file(df_raw: pd.DataFrame, output_path: Path) -> None:
             sheet_formatted.write(tcomp_vertical_offset + i, tcomp_column + 1, s, transport_id_format)
         sheet_formatted.set_column(tcomp_column + 1, tcomp_column + 1, 15, None, {"hidden": True})  # Hide by default
         # Headers
-        synth_headers = ["Nb trajets", "Distance (1000 km)", "Emissions\n(t CO2e)", "Incertitude\n(± t CO2e)"]
+        synth_headers = ["Nb trajets A/R", "Distance (1000 km)", "Emissions\n(t CO2e)", "Incertitude\n(± t CO2e)"]
         synth_header_format = workbook.add_format({"text_wrap": True, "bg_color": "#ffc000", **f_border_align_center})
         for i, s in enumerate(synth_headers):
             sheet_formatted.write(tcomp_vertical_offset, tcomp_column + 2 + i, s, synth_header_format)
@@ -258,6 +259,7 @@ def save_to_file(df_raw: pd.DataFrame, output_path: Path) -> None:
         # Cells
         synth_cell_format = workbook.add_format({**f_border_align_center, "num_format": "0.0"})
         synth_cell_format_int = workbook.add_format({**f_border_align_center, "num_format": "0"})
+        tcomp_column_roundtrip = index_to_column(columns_formatted.index(Enm.COL_ROUND_TRIP))
         tcomp_column_transport = index_to_column(columns_formatted.index(Enm.COL_EMISSION_TRANSPORT))
         tcomp_column_distance = index_to_column(columns_formatted.index(Enm.COL_DIST_TOTAL))
         tcomp_column_emission = index_to_column(columns_formatted.index(Enm.COL_EMISSIONS))
@@ -273,7 +275,10 @@ def save_to_file(df_raw: pd.DataFrame, output_path: Path) -> None:
             sheet_formatted.write_formula(
                 tcomp_vertical_offset + i + 1,
                 tcomp_column + 2,
-                f"COUNTIFS(${tcomp_column_transport}:${tcomp_column_transport}, {column_transport_id}{tcomp_vertical_offset + 2 + i}, {tcomp_condition_1})+COUNTIFS(${tcomp_column_transport}:${tcomp_column_transport}, {column_transport_id}{tcomp_vertical_offset + 2 + i}, {tcomp_condition_2})",
+                f"(COUNTIFS(${tcomp_column_transport}:${tcomp_column_transport}, {column_transport_id}{tcomp_vertical_offset + 2 + i}, {tcomp_condition_1})"
+                f"+COUNTIFS(${tcomp_column_transport}:${tcomp_column_transport}, {column_transport_id}{tcomp_vertical_offset + 2 + i}, {tcomp_condition_2})"
+                f'+COUNTIFS(${tcomp_column_transport}:${tcomp_column_transport}, {column_transport_id}{tcomp_vertical_offset + 2 + i}, {tcomp_condition_1}, ${tcomp_column_roundtrip}:${tcomp_column_roundtrip}, "oui")'
+                f'+COUNTIFS(${tcomp_column_transport}:${tcomp_column_transport}, {column_transport_id}{tcomp_vertical_offset + 2 + i}, {tcomp_condition_2}, ${tcomp_column_roundtrip}:${tcomp_column_roundtrip}, "oui"))/2',
                 synth_cell_format_int,
             )
         for j, col in enumerate([tcomp_column_distance, tcomp_column_emission, tcomp_column_uncertainty]):  # other columns
