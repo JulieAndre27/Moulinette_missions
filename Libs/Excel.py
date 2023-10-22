@@ -226,13 +226,13 @@ def save_to_file(df_raw: pd.DataFrame, output_path: Path) -> None:
         sheet_formatted.write(
             tcomp_vertical_offset, tcomp_column + 3, 'Utilisez "*" pour indiquer une valeur quelconque', workbook.add_format({"italic": True})
         )
-        sheet_formatted.write(tcomp_vertical_offset + 1, tcomp_column + 3, "Ville 1:")
+        sheet_formatted.write(tcomp_vertical_offset + 1, tcomp_column + 3, "Ville départ:")
         sheet_formatted.write(tcomp_vertical_offset + 1, tcomp_column + 4, "Paris")
-        sheet_formatted.write(tcomp_vertical_offset + 1, tcomp_column + 5, "Pays 1:")
+        sheet_formatted.write(tcomp_vertical_offset + 1, tcomp_column + 5, "Pays départ:")
         sheet_formatted.write(tcomp_vertical_offset + 1, tcomp_column + 6, "FR")
-        sheet_formatted.write(tcomp_vertical_offset + 2, tcomp_column + 3, "Ville 2:")
+        sheet_formatted.write(tcomp_vertical_offset + 2, tcomp_column + 3, "Ville arrivée:")
         sheet_formatted.write(tcomp_vertical_offset + 2, tcomp_column + 4, "Vienne")
-        sheet_formatted.write(tcomp_vertical_offset + 2, tcomp_column + 5, "Pays 2:")
+        sheet_formatted.write(tcomp_vertical_offset + 2, tcomp_column + 5, "Pays arrivée:")
         sheet_formatted.write(tcomp_vertical_offset + 2, tcomp_column + 6, "AT")
         tcomp_vertical_offset += 3
         # First column
@@ -270,15 +270,12 @@ def save_to_file(df_raw: pd.DataFrame, output_path: Path) -> None:
         tcomp_column_arrival_country = index_to_column(columns_formatted.index(Enm.COL_ARRIVAL_COUNTRYCODE))
         column_transport_id = index_to_column(tcomp_column + 1)
         tcomp_condition_1 = f"${tcomp_column_departure_city}:${tcomp_column_departure_city}, ${index_to_column(tcomp_column+4)}${tcomp_vertical_offset-1}, ${tcomp_column_departure_country}:${tcomp_column_departure_country}, ${index_to_column(tcomp_column+6)}${tcomp_vertical_offset-1}, ${tcomp_column_arrival_city}:${tcomp_column_arrival_city}, ${index_to_column(tcomp_column+4)}${tcomp_vertical_offset}, ${tcomp_column_arrival_country}:${tcomp_column_arrival_country}, ${index_to_column(tcomp_column+6)}${tcomp_vertical_offset}"
-        tcomp_condition_2 = f"${tcomp_column_arrival_city}:${tcomp_column_arrival_city}, ${index_to_column(tcomp_column+4)}${tcomp_vertical_offset-1}, ${tcomp_column_arrival_country}:${tcomp_column_arrival_country}, ${index_to_column(tcomp_column+6)}${tcomp_vertical_offset-1}, ${tcomp_column_departure_city}:${tcomp_column_departure_city}, ${index_to_column(tcomp_column+4)}${tcomp_vertical_offset}, ${tcomp_column_departure_country}:${tcomp_column_departure_country}, ${index_to_column(tcomp_column+6)}${tcomp_vertical_offset}"
         for i, s in enumerate(tcomp_transports):  # N_trips
             sheet_formatted.write_formula(
                 tcomp_vertical_offset + i + 1,
                 tcomp_column + 2,
                 f"(COUNTIFS(${tcomp_column_transport}:${tcomp_column_transport}, {column_transport_id}{tcomp_vertical_offset + 2 + i}, {tcomp_condition_1})"
-                f"+COUNTIFS(${tcomp_column_transport}:${tcomp_column_transport}, {column_transport_id}{tcomp_vertical_offset + 2 + i}, {tcomp_condition_2})"
-                f'+COUNTIFS(${tcomp_column_transport}:${tcomp_column_transport}, {column_transport_id}{tcomp_vertical_offset + 2 + i}, {tcomp_condition_1}, ${tcomp_column_roundtrip}:${tcomp_column_roundtrip}, "oui")'
-                f'+COUNTIFS(${tcomp_column_transport}:${tcomp_column_transport}, {column_transport_id}{tcomp_vertical_offset + 2 + i}, {tcomp_condition_2}, ${tcomp_column_roundtrip}:${tcomp_column_roundtrip}, "oui"))/2',
+                f'+COUNTIFS(${tcomp_column_transport}:${tcomp_column_transport}, {column_transport_id}{tcomp_vertical_offset + 2 + i}, {tcomp_condition_1}, ${tcomp_column_roundtrip}:${tcomp_column_roundtrip}, "oui"))/2',
                 synth_cell_format_int,
             )
         for j, col in enumerate([tcomp_column_distance, tcomp_column_emission, tcomp_column_uncertainty]):  # other columns
@@ -286,7 +283,7 @@ def save_to_file(df_raw: pd.DataFrame, output_path: Path) -> None:
                 sheet_formatted.write_formula(
                     tcomp_vertical_offset + i + 1,
                     tcomp_column + 3 + j,
-                    f"(SUMIFS({col}:{col}, ${tcomp_column_transport}:${tcomp_column_transport}, ${column_transport_id}{tcomp_vertical_offset + 2 + i}, {tcomp_condition_1})+SUMIFS({col}:{col}, ${tcomp_column_transport}:${tcomp_column_transport}, ${column_transport_id}{tcomp_vertical_offset + 2 + i}, {tcomp_condition_2}))/1000",
+                    f"(SUMIFS({col}:{col}, ${tcomp_column_transport}:${tcomp_column_transport}, ${column_transport_id}{tcomp_vertical_offset + 2 + i}, {tcomp_condition_1}))/1000",
                     synth_cell_format,
                 )
         synth_total_format = workbook.add_format({"bg_color": "#ffe699", **f_border_align_center, "num_format": "0.0"})
