@@ -4,7 +4,8 @@ from pathlib import Path
 
 import pandas as pd
 
-from Libs.EmissionsCalculator import compute_emissions_df, save_to_file
+from Libs.EmissionsCalculator import compute_emissions_df
+from Libs.Excel import save_to_file
 from Libs.MissionsLoader import load_data
 
 in_files = ["MIS_2019_tout.xlsx"]
