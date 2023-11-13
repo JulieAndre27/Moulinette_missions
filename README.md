@@ -1,6 +1,6 @@
 # Moulinette missions
 
-A tool to compute CO2e emisssions from transports in LMD, from ENS and CNRS data.
+A tool to compute CO2e emisssions from mission transports from a given laboratory, with possibly different tutels (CNRS, universities...)
 
 ## Installation
 
