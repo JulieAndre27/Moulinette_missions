@@ -65,9 +65,10 @@ def load_data(data_path: Path, conf_path: Path) -> pd.DataFrame:
 def _fix_round_trips(data: pd.DataFrame) -> None:
     """Fix incorrect round trips
     If a mission ID has several trips, set them all to one-way"""
+
     data[Enm.COL_ROUND_TRIP] = data[Enm.COL_ROUND_TRIP].apply(str.lower)
     duplicated_mission_loc = data[Enm.COL_MISSION_ID].duplicated(keep=False)
-    wrong_roundtrips = duplicated_mission_loc & (data[Enm.COL_ROUND_TRIP] == Enm.ROUNDTRIP_YES)
+    wrong_roundtrips = data[Enm.COL_MISSION_ID].notna() & duplicated_mission_loc & (data[Enm.COL_ROUND_TRIP] == Enm.ROUNDTRIP_YES)
 
     N_wrong_roundtrips = wrong_roundtrips.sum()
     if N_wrong_roundtrips > 0:
