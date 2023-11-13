@@ -14,7 +14,7 @@ A tool to compute CO2e emisssions from mission transports from a given laborator
     * Pull this repository `git clone https://github.com/JulieAndre27/Moulinette_missions.git`
     * Navigate inside the directory `cd Moulinette_missions`
     * Install the environment `poetry install`
-    * Activate the environment `poetry env use python3.11`
+    * Activate the environment `. .venv/bin/activate`
     * Setup pre-commit `pre-commit install`
 
 ## Usage
