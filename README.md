@@ -1,6 +1,6 @@
 # Moulinette missions
 
-A tool to compute CO2e emisssions from mission transports from a given laboratory, with possibly different tutels (CNRS, universities...), according to Climactions-IPSL 2023 standard. See their documentation for details about the choices of the hypothesis and emissions factors taken in the code.
+A tool to compute CO2e emisssions from mission transports from a given laboratory, with possibly different tutels (CNRS, universities...), according to Climactions-IPSL 2023 standard. See their documentation (https://climactions.ipsl.fr/) for details about the choices of the hypothesis and emissions factors taken in the code.
 
 ## Installation
 
