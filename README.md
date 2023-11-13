@@ -47,10 +47,10 @@ We define how to interpret the transports in the `t_type` column: which correspo
 
 ```
 # Below we define how to link user inputs and transportation
-t_type_air = avion
-t_type_train = train
-t_type_car = véhicule personnel, location de véhicule, taxi, passager
-t_type_ignored = rer, metro, métro, bus, bateau, divers
+t_types_plane = avion
+t_types_train = train
+t_types_car = véhicule personnel, location de véhicule, taxi, passager
+t_types_ignored = rer, metro, métro, bus, bateau, divers
 ```
 
 And finally we define which type of credits the mission uses:
