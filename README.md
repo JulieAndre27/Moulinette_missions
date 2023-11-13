@@ -5,11 +5,14 @@ A tool to compute CO2e emisssions from transports in LMD, from ENS and CNRS data
 ## Installation
 
 * Requirements:
+    * git
     * python 3.11
     * poetry (`python -m pip install poetry` outside of your virtual environment)
 * Recommended:
     * Use a virtual environment. This will be done by default if you set `python -m poetry config virtualenvs.in-project true`.
 * Install dependencies
+    * Pull this repository `git pull git@github.com:JulieAndre27/Moulinette_missions.git`
+    * Navigate inside the directory `cd Moulinette_missions`
     * `poetry install`
     * `pre-commit install`
 
@@ -40,7 +43,7 @@ t_type = g
 round_trip = i
 ```
 
-We define how to inerpret the transports in the `t_type` column: which correspond to plane/train:car, and which to ignore.
+We define how to interpret the transports in the `t_type` column: which correspond to plane/train/car, and which to ignore.
 
 ```
 # Below we define how to link user inputs and transportation
