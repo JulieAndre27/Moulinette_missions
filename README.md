@@ -1,6 +1,6 @@
 # Moulinette missions
 
-A tool to compute CO2e emisssions from mission transports from a given laboratory, with possibly different tutels (CNRS, universities...)
+A tool to compute CO2e emisssions from mission transports from a given laboratory, with possibly different tutels (CNRS, universities...), according to Climactions-IPSL 2023 standard. See their documentation for details about the choices of the hypothesis and emissions factors taken in the code.
 
 ## Installation
 
@@ -62,6 +62,11 @@ credits = CNRS
 
 ### Running the moulinette
 
-* Specify the input excels and their configuration files at the top of `moulinette.py` (`in_files` and `config_files`). If you specify several, their data will be concatenated in the output.
+* Specify the input excels and their configuration files at the top of `moulinette.py` (`in_files` and `config_files`).
+* If you have several excels files corresponding to different credits (CNRS, university, ...), you need to give one config file per excel sheet. Their trajets data will be concatenated in the output (the credits will be indicated in a column).
 * Run `python moulinette.py`
 * If all goes well, this will generate in `Data/Generated` an output excel file named after the `out_file` variable. This file contains a "well presented" sheet with some aggregated data, and a sheet with all the raw data.
+
+## Contributors
+This code was adapted from a Python script called "moulinette" developped by Olivier Aumont (researcher scientist at LOCEAN) and available on demand.
+The adaption was done by Julie André and Amaury Barral.
