@@ -45,7 +45,7 @@ class E_params:
     EF_car_uncertainty = 0.6
     car_geodesic_correction = 1.3  # approx. : multiply the geodesic distance to take into account the path is not straight.
 
-    # Threshold (km) used only if a row is missing the type of transport
+    # Threshold (km, one way) used only if a row is missing the type of transport
     threshold_unknown_transportation = 700
     threshold_force_plane = 4000  # force plane if distance is too big to avoid input errors
 
