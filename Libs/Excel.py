@@ -93,7 +93,8 @@ def save_to_file(df_raw: pd.DataFrame, output_path: Path) -> None:
             column_i_raw = list(df_raw.columns).index(column)
             column_letter_raw = index_to_column(column_i_raw)
             for row in range(1, len(df) + 1):
-                sheet_formatted.write_formula(row + vertical_offset, column_i, f"{sheet_name_raw}!${column_letter_raw}${row + 1}")
+                loc = f"{sheet_name_raw}!${column_letter_raw}${row + 1}"
+                sheet_formatted.write_formula(row + vertical_offset, column_i, f'IF(ISBLANK({loc}), "", {loc})')
 
         # Define some common format dicts
         f_border_align_center = {"border": 1, "align": "center", "valign": "vcenter"}
