@@ -90,11 +90,13 @@ class GeoDistanceCalculator:
             (loc2.latitude, loc2.longitude),
         )
 
-    def get_geodesic_distance_between(self, str1: str, str2: str) -> tuple[float | None, CustomLocation, CustomLocation]:
+    def get_geodesic_distance_between(self, str1: str, str2: str) -> tuple[float, CustomLocation | None, CustomLocation | None]:
         """get the geo distance (km) between two places from their address
 
         :returns (distance, geocode loc1, geocode loc2)
         """
+        if str1.startswith("nan (") or str2.startswith("nan ("):  # missing city
+            return 0, None, None
         coord1 = self.find_location(str1)
         coord2 = self.find_location(str2)
 

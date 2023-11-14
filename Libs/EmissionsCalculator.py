@@ -51,10 +51,12 @@ class E_params:
 
 
 def _get_co2e_from_distance(
-    dist_km: float, main_ttype: str, loc_departure: CustomLocation, loc_arrival: CustomLocation, is_round_trip: bool
+    dist_km: float, main_ttype: str, loc_departure: CustomLocation | None, loc_arrival: CustomLocation | None, is_round_trip: bool
 ) -> tuple[float, float, str]:
     """get co2e (kg) from data
     :returns (CO2e in kg, uncertainty in kg, transport type used)"""
+    if loc_departure is None or loc_arrival is None:
+        return 0, 0, ""
     if main_ttype == Enm.MAIN_TRANSPORT_PLANE:  # plane
         corrected_distance = dist_km + E_params.plane_geodesic_correction_offset_km
         EF_uncertainty = E_params.EF_plane_uncertainty
@@ -137,7 +139,15 @@ def compute_emissions_one_row(row: pd.Series) -> pd.Series | None:
     )
 
     return pd.Series(
-        data=[one_way_dist_km, final_distance_km, co2e_emissions, loc_departure.countryCode, loc_arrival.countryCode, emission_ttype, uncertainty],
+        data=[
+            one_way_dist_km,
+            final_distance_km,
+            co2e_emissions,
+            loc_departure.countryCode if loc_departure else None,
+            loc_arrival.countryCode if loc_arrival else None,
+            emission_ttype,
+            uncertainty,
+        ],
         index=[
             Enm.COL_DIST_ONE_WAY,
             Enm.COL_DIST_TOTAL,
