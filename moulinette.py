@@ -14,9 +14,9 @@ config_files = ["config_file_ex.cfg"]
 out_file = "Missions_output_ex.xlsx"
 
 # you can also put several files, with a unique output file :
-# in_files = ["MIS_2022_v3_aller_simple.xlsx", "Missions_LMD_ENS_2022.xlsx"]  # Data spreadsheet
-# config_files = ["config_file_LMD_CNRS_2022.cfg", "config_file_LMD_ENS_2022.cfg"]  # config file
-# out_file = "Missions_2022_output.xlsx"
+# in_files = ["Missions_ex_file1.xlsx", "Missions_ex_file2.xlsx"]  # Data spreadsheet
+# config_files = ["config_file_ex1.cfg", "config_file_ex2.cfg"]  # config file
+# out_file = "Missions_output_ex1_2.xlsx"
 
 # No need to edit below
 logging.basicConfig()  # Setup printing of messages
