@@ -12,6 +12,7 @@ from Libs.Geo import CustomLocation, GeoDistanceCalculator
 
 def _prepare_data(df: pd.DataFrame) -> pd.DataFrame:
     """group by destination where we are from/to paris and sum emissions"""
+    df = df.dropna(subset=["departure_loc", "arrival_loc"])
 
     # Only keep rows from/to paris
     paris_loc = CustomLocation(address="Paris, Île-de-France, France", latitude=48.8588897, longitude=2.320041, countryCode="FR")

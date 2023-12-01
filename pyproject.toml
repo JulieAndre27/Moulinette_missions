@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "moulinette-missions"
-version = "0.1.0"
+version = "0.2.0"
 description = "Compute CO2e emissions from LMD travel data"
 authors = ["Julie André <julie.andre@lmd.ipsl.fr>"]
 readme = "README.md"
