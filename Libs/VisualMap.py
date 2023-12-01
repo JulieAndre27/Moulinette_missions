@@ -1,8 +1,9 @@
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
-from matplotlib.colors import Normalize
+from matplotlib.colors import ListedColormap, Normalize
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 from mpl_toolkits.basemap import Basemap
 
@@ -27,7 +28,7 @@ def _prepare_data(df: pd.DataFrame) -> pd.DataFrame:
 
     new_df = (
         df.groupby("notparis_address")
-        .agg(total_emissions_oneway=("emissions_oneway", "sum"), single_emissions_oneway=("emissions_oneway", "first"))
+        .agg(total_emissions_oneway=("emissions_oneway", "sum"), single_emissions_oneway=("emissions_oneway", "mean"))
         .reset_index()
     )
 
@@ -43,7 +44,8 @@ def generate_visual_map(df: pd.DataFrame, output_path: Path) -> None:
     fig, ax = plt.subplots(figsize=(10, 8))
     m = Basemap(projection="mill", llcrnrlat=-90, urcrnrlat=90, llcrnrlon=-180, urcrnrlon=180, resolution="c", ax=ax)
     m.drawcoastlines()
-    cmap = plt.get_cmap("cool")
+    m.drawcountries()
+    cmap = ListedColormap(plt.get_cmap("cool")(np.linspace(0, 1, 5)))
     normalize = Normalize(vmin=df["single_emissions_oneway"].min(), vmax=df["single_emissions_oneway"].max())
 
     # Plot circles on the map
@@ -52,6 +54,7 @@ def generate_visual_map(df: pd.DataFrame, output_path: Path) -> None:
     for index, row in df.iterrows():
         x, y = m(row["notparis_address"].longitude, row["notparis_address"].latitude)
         m.plot(x, y, "o", markersize=max_radius * row["circle_size"], color=cmap(normalize(row["single_emissions_oneway"])), alpha=0.6)
+        m.plot(x, y, "o", markersize=min(2, max_radius * row["circle_size"]), color="black", zorder=999)
     plt.title("Emissions from Paris by destination")
 
     # Create a colorbar
@@ -64,9 +67,11 @@ def generate_visual_map(df: pd.DataFrame, output_path: Path) -> None:
     axins = inset_axes(ax, width="50%", height="45%", loc="lower left", borderpad=0, bbox_to_anchor=(-0.1, 0.01, 1, 1), bbox_transform=ax.transAxes)
     m_europe = Basemap(projection="mill", llcrnrlat=30, urcrnrlat=65, llcrnrlon=-10, urcrnrlon=25, resolution="c", ax=axins)
     m_europe.drawcoastlines()
+    m_europe.drawcountries()
     for index, row in df.iterrows():
         x, y = m_europe(row["notparis_address"].longitude, row["notparis_address"].latitude)
         m_europe.plot(x, y, "o", markersize=max_radius * row["circle_size"], color=cmap(normalize(row["single_emissions_oneway"])), alpha=0.6)
+        m_europe.plot(x, y, "o", markersize=min(2, max_radius * row["circle_size"]), color="black", zorder=999)
 
     # Add legend with custom handler
     plt.savefig(output_path, dpi=300, bbox_inches="tight")
