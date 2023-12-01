@@ -25,11 +25,11 @@ From raw excel data containing the details of the lab's missions, it generates a
 
 ### Input data
 
-Put your input excel file in `Data/Raw`. Your input file should at least contain the following columns (in no particular order): the mission ID, departure city, departure country, arrival city, arrival country, transportation used, whether it's a round trip.
+Put your input excel (`.xlsx`, if `.csv` or `.ods` you can easily convert them using e.g. LibreOffice) file in `Data/Raw`. Your input file should at least contain the following columns (in no particular order): the mission ID, departure city, departure country, arrival city, arrival country, transportation used, whether it's a round trip.
 
 To know how to interpret your data, you must provide a configuration file in `Data/Config`.
 
-At the top of the config file, we specify the name of the sheet where the data is written.
+At the top of the config file, we specify the name of the sheet where the data is written, between brackets.
 Then, we first define which column corresponds to which data:
 
 ```

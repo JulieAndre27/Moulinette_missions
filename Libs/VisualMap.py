@@ -75,4 +75,4 @@ def generate_visual_map(df: pd.DataFrame, output_path: Path) -> None:
 
     # Add legend with custom handler
     plt.savefig(output_path, dpi=300, bbox_inches="tight")
-    plt.show()
+    # plt.show()
