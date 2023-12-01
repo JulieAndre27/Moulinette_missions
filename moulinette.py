@@ -7,6 +7,7 @@ import pandas as pd
 from Libs.EmissionsCalculator import compute_emissions_df
 from Libs.Excel import save_to_file
 from Libs.MissionsLoader import load_data
+from Libs.VisualMap import generate_visual_map
 
 # compute emission for a single excel file.
 in_files = ["Missions_ex_file.xlsx"]
@@ -27,5 +28,7 @@ df_emissions = compute_emissions_df(df_data)  # compute emissions
 for i in range(1, len(in_files)):
     df_data = load_data(Path("Data/Raw") / in_files[i], Path("Data/Config") / config_files[i])  # load data
     df_emissions = pd.concat((df_emissions, compute_emissions_df(df_data)))
+
+generate_visual_map(df_emissions, Path("Data/Generated") / out_file.replace(".xlsx", ".png"))
 
 save_to_file(df_emissions, Path("Data/Generated") / out_file)  # format and save

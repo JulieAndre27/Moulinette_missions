@@ -140,6 +140,8 @@ def compute_emissions_one_row(row: pd.Series) -> pd.Series | None:
 
     return pd.Series(
         data=[
+            loc_departure,
+            loc_arrival,
             one_way_dist_km,
             final_distance_km,
             co2e_emissions,
@@ -149,6 +151,8 @@ def compute_emissions_one_row(row: pd.Series) -> pd.Series | None:
             uncertainty,
         ],
         index=[
+            Enm.COL_DEPARTURE_LOC,
+            Enm.COL_ARRIVAL_LOC,
             Enm.COL_DIST_ONE_WAY,
             Enm.COL_DIST_TOTAL,
             Enm.COL_EMISSIONS,

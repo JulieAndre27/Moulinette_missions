@@ -34,6 +34,12 @@ class CustomLocation:
         """init from json dict"""
         return cls(data["address"], data["latitude"], data["longitude"], data["countryCode"])
 
+    def __hash__(self):
+        return hash((self.latitude, self.longitude))
+
+    def __lt__(self, other):  # for ordering
+        return self.latitude < other.latitude or (self.latitude == other.latitude and self.longitude < other.longitude)
+
 
 class GeoDistanceCalculator:
     """compute distance between locations, cached"""
