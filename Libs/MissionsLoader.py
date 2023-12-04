@@ -20,6 +20,9 @@ def load_data(data_path: Path, conf_path: Path) -> pd.DataFrame:
     :param conf_path: path to the .cfg conf
     :returns a pandas df with the corrected data
     """
+    # Check paths
+    assert data_path.exists(), f"The raw data file {data_path} doesn't exist"
+    assert conf_path.exists(), f"The config file {conf_path} doesn't exist"
     # load conf
     config = configparser.RawConfigParser()
     config.read(conf_path, encoding="utf-8")

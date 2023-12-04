@@ -66,7 +66,7 @@ credits = CNRS
 * Specify the input excels and their configuration files at the top of `moulinette.py` (`in_files` and `config_files`).
 * If you have several excels files corresponding to different credits (CNRS, university, ...), you need to give one config file per excel sheet. Their trajets data will be concatenated in the output (the credits will be indicated in a column).
 * Run `python moulinette.py`
-* If all goes well, this will generate in `Data/Generated` an output excel file named after the `out_file` variable. This file contains a "well presented" sheet with some aggregated data, and a sheet with all the raw data.
+* If all goes well, this will generate in `Data/Generated` an output excel file named after the `out_file` variable. This file contains a "well presented" sheet with some aggregated data, and a sheet with all the raw data. A map of the emissions for trips from/to the Paris region is also generated.
 
 ## Contributors
 This code was adapted from a Python script called "moulinette" developped by Olivier Aumont (researcher scientist at LOCEAN) and available on demand.
