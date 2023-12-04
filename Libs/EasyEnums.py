@@ -20,6 +20,8 @@ class Enm:
     # Custom column names
     COL_CREDITS = "credits"
     COL_MAIN_TRANSPORT = "main_transport"  # the main transportation method used for computing emissions
+    COL_DEPARTURE_LOC = "departure_loc"
+    COL_ARRIVAL_LOC = "arrival_loc"
     COL_DIST_ONE_WAY = "one_way_dist_km"
     COL_DIST_TOTAL = "final_dist_km"
     COL_EMISSIONS = "co2e_emissions_kg"
