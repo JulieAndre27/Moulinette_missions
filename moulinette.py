@@ -13,6 +13,7 @@ from Libs.VisualMap import generate_visual_map
 in_files = ["Missions_ex_file.xlsx"]
 config_files = ["config_file_ex.cfg"]
 out_file = "Missions_output_ex.xlsx"
+ges1p5_file = "generated_ges1p5.csv"
 
 # you can also put several files, with a unique output file :
 # in_files = ["Missions_ex_file1.xlsx", "Missions_ex_file2.xlsx"]  # Data spreadsheet
@@ -28,9 +29,9 @@ df_emissions = compute_emissions_df(df_data)  # compute emissions
 
 for i in range(1, len(in_files)):
     df_data = load_data(Path("Data/Raw") / in_files[i], Path("Data/Config") / config_files[i])  # load data
-    df_emissions = pd.concat((df_emissions, compute_emissions_df(df_data)))
+    df_emissions = pd.concat((df_emissions, compute_emissions_df(df_data)), ignore_index=True)
 
 
 generate_visual_map(df_emissions, Path("Data/Generated") / out_file.replace(".xlsx", ".png"))
 
-save_to_file(df_emissions, Path("Data/Generated") / out_file)  # format and save
+save_to_file(df_emissions, Path("Data/Generated") / out_file, Path("Data/Generated") / ges1p5_file)  # format and save

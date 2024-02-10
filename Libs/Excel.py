@@ -34,11 +34,13 @@ def format_headers(header_format: dict, worksheet: Any, df: pd.DataFrame, offset
         worksheet.write(offset, i, col, header_format)
 
 
-def save_to_file(df_raw: pd.DataFrame, output_path: Path) -> None:
+def save_to_file(df_raw: pd.DataFrame, output_path: Path, ges1p5_path: Path) -> None:
     """Save dataframe to file"""
-    assert output_path.suffix == ".xlsx", "Output must be in .xlsx format"
+    assert output_path.suffix == ".xlsx", "output_path must be in .xlsx format"
+    assert ges1p5_path.suffix == ".csv", "ges1p5_path must be in .csv format"
     df = df_raw.copy()
 
+    # create xlsx
     with pd.ExcelWriter(str(output_path), engine="xlsxwriter") as writer:
         sheet_name = "emissions"
         sheet_name_raw = f"{sheet_name}_raw"
@@ -298,3 +300,54 @@ def save_to_file(df_raw: pd.DataFrame, output_path: Path) -> None:
                 if j > 0
                 else workbook.add_format({"bg_color": "#ffe699", "border": 1, "align": "center", "valign": "vcenter", "num_format": "0"}),
             )
+
+    # create GES1.5 csv
+    df_1p5 = df_raw.copy()
+    columns_to_fr = {
+        Enm.COL_DEPARTURE_DATE: "Date de départ",
+        Enm.COL_DEPARTURE_CITY: "Ville de départ",
+        Enm.COL_DEPARTURE_COUNTRYCODE: "Pays de départ",
+        Enm.COL_ARRIVAL_CITY: "Ville de destination",
+        Enm.COL_ARRIVAL_COUNTRYCODE: "Pays de destination",
+        Enm.COL_EMISSION_TRANSPORT: "Mode de déplacement",
+        Enm.COL_ROUND_TRIP: "Aller Retour (OUI si identiques, NON si différents)",
+    }
+    # Generate a unique mission ID >=1
+    df_1p5["# mission"] = pd.factorize(df_1p5[Enm.COL_MISSION_ID].astype(str) + "-" + df_1p5[Enm.COL_CREDITS])[0] + 1
+    empty_indices = df_1p5.loc[df_1p5[Enm.COL_MISSION_ID].isna()].index
+    next_index = df_1p5["# mission"].max() + 1
+    for idx in empty_indices:
+        df_1p5.at[idx, "# mission"] = next_index
+        next_index += 1
+
+    df_1p5 = df_1p5[df_1p5.columns.intersection(list(columns_to_fr.keys()) + ["# mission"])]  # remove other columns
+    df_1p5 = df_1p5.rename(columns=columns_to_fr)
+    # Format values
+    df_1p5["Aller Retour (OUI si identiques, NON si différents)"] = df_1p5["Aller Retour (OUI si identiques, NON si différents)"].map(
+        {"oui": "OUI", "non": "NON"}
+    )
+    df_1p5["Mode de déplacement"] = (
+        df_1p5["Mode de déplacement"].replace(regex=r"(\w+) \(.*", value=r"\1").map({"plane": "avion", "car": "voiture", "train": "train"})
+    )
+    df_1p5["Date de départ"] = df_1p5["Date de départ"].dt.strftime("%d/%m/%Y")
+    # Add required empty columns
+    for k in ["Nb de personnes dans la voiture", "Motif du déplacement (optionnel)", "Statut de l'agent (optionnel)"]:
+        df_1p5[k] = ""
+    # Reorder columns
+    df_1p5 = df_1p5[
+        [
+            "# mission",
+            "Date de départ",
+            "Ville de départ",
+            "Pays de départ",
+            "Ville de destination",
+            "Pays de destination",
+            "Mode de déplacement",
+            "Nb de personnes dans la voiture",
+            "Aller Retour (OUI si identiques, NON si différents)",
+            "Motif du déplacement (optionnel)",
+            "Statut de l'agent (optionnel)",
+        ]
+    ]
+
+    df_1p5.to_csv(ges1p5_path, index=False)
