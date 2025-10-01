@@ -1,4 +1,5 @@
 """compute CO2e emissions from LMD travel data"""
+
 import logging
 from pathlib import Path
 

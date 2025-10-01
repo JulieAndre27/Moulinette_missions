@@ -1,4 +1,5 @@
 """Excel manipulation"""
+
 from pathlib import Path
 from typing import Any
 
@@ -71,19 +72,19 @@ def save_to_file(df_raw: pd.DataFrame, output_path: Path, ges1p5_path: Path) -> 
         ]
         columns_to_fr = {
             Enm.COL_CREDITS: "Crédits",
-            Enm.COL_MISSION_ID: f"N°\nmission",
-            Enm.COL_DEPARTURE_DATE: f"Départ\n(date)",
-            Enm.COL_DEPARTURE_CITY: f"Départ\n(ville)",
-            Enm.COL_DEPARTURE_COUNTRYCODE: f"Départ\n(pays)",
-            Enm.COL_ARRIVAL_CITY: f"Arrivée\n(ville)",
-            Enm.COL_ARRIVAL_COUNTRYCODE: f"Arrivée\n(pays)",
+            Enm.COL_MISSION_ID: "N°\nmission",
+            Enm.COL_DEPARTURE_DATE: "Départ\n(date)",
+            Enm.COL_DEPARTURE_CITY: "Départ\n(ville)",
+            Enm.COL_DEPARTURE_COUNTRYCODE: "Départ\n(pays)",
+            Enm.COL_ARRIVAL_CITY: "Arrivée\n(ville)",
+            Enm.COL_ARRIVAL_COUNTRYCODE: "Arrivée\n(pays)",
             Enm.COL_TRANSPORT_TYPE: "Transport",
             Enm.COL_ROUND_TRIP: "A/R",
-            Enm.COL_DIST_ONE_WAY: f"Distance\n(one-way, km)",
-            Enm.COL_DIST_TOTAL: f"Distance\ntotale (km)",
-            Enm.COL_EMISSIONS: f"CO2e emissions\n(kg)",
-            Enm.COL_EMISSION_TRANSPORT: f"Transport utilisé\npour calcul",
-            Enm.COL_EMISSION_UNCERTAINTY: f"Incertitude\n(±kg)",
+            Enm.COL_DIST_ONE_WAY: "Distance\n(one-way, km)",
+            Enm.COL_DIST_TOTAL: "Distance\ntotale (km)",
+            Enm.COL_EMISSIONS: "CO2e emissions\n(kg)",
+            Enm.COL_EMISSION_TRANSPORT: "Transport utilisé\npour calcul",
+            Enm.COL_EMISSION_UNCERTAINTY: "Incertitude\n(±kg)",
         }
         df = df.round({Enm.COL_DIST_ONE_WAY: 0, Enm.COL_DIST_TOTAL: 0, Enm.COL_EMISSIONS: 1, Enm.COL_EMISSION_UNCERTAINTY: 1})
         df = df[columns_formatted]
@@ -188,7 +189,7 @@ def save_to_file(df_raw: pd.DataFrame, output_path: Path, ges1p5_path: Path) -> 
             sheet_formatted.write_formula(
                 synth_vertical_offset + 6,
                 synth_column + 2 + j,
-                f"SUM({index_to_column(col)}{synth_vertical_offset+2}:{index_to_column(col)}{synth_vertical_offset+6})",
+                f"SUM({index_to_column(col)}{synth_vertical_offset + 2}:{index_to_column(col)}{synth_vertical_offset + 6})",
                 synth_total_format
                 if j > 0
                 else workbook.add_format({"bg_color": "#ffe699", "border": 1, "align": "center", "valign": "vcenter", "num_format": "0"}),
@@ -210,14 +211,14 @@ def save_to_file(df_raw: pd.DataFrame, output_path: Path, ges1p5_path: Path) -> 
         sheet_formatted.write_formula(
             synth_train_fr_offset,
             synth_column + 2,
-            f"COUNTIF(${synth_column_transport}:${synth_column_transport}, {column_transport_id}{synth_train_fr_offset+1})",
+            f"COUNTIF(${synth_column_transport}:${synth_column_transport}, {column_transport_id}{synth_train_fr_offset + 1})",
             synth_cell_format_int,
         )
         for j, col in enumerate([synth_column_distance, synth_column_emission, synth_column_uncertainty]):  # other columns
             sheet_formatted.write_formula(
                 synth_train_fr_offset,
                 synth_column + 3 + j,
-                f"SUMIF(${synth_column_transport}:${synth_column_transport}, ${column_transport_id}{synth_train_fr_offset+1},{col}:{col})/1000",
+                f"SUMIF(${synth_column_transport}:${synth_column_transport}, ${column_transport_id}{synth_train_fr_offset + 1},{col}:{col})/1000",
                 synth_cell_format,
             )
 
@@ -272,7 +273,7 @@ def save_to_file(df_raw: pd.DataFrame, output_path: Path, ges1p5_path: Path) -> 
         tcomp_column_arrival_city = index_to_column(columns_formatted.index(Enm.COL_ARRIVAL_CITY))
         tcomp_column_arrival_country = index_to_column(columns_formatted.index(Enm.COL_ARRIVAL_COUNTRYCODE))
         column_transport_id = index_to_column(tcomp_column + 1)
-        tcomp_condition_1 = f"${tcomp_column_departure_city}:${tcomp_column_departure_city}, ${index_to_column(tcomp_column+4)}${tcomp_vertical_offset-1}, ${tcomp_column_departure_country}:${tcomp_column_departure_country}, ${index_to_column(tcomp_column+6)}${tcomp_vertical_offset-1}, ${tcomp_column_arrival_city}:${tcomp_column_arrival_city}, ${index_to_column(tcomp_column+4)}${tcomp_vertical_offset}, ${tcomp_column_arrival_country}:${tcomp_column_arrival_country}, ${index_to_column(tcomp_column+6)}${tcomp_vertical_offset}"
+        tcomp_condition_1 = f"${tcomp_column_departure_city}:${tcomp_column_departure_city}, ${index_to_column(tcomp_column + 4)}${tcomp_vertical_offset - 1}, ${tcomp_column_departure_country}:${tcomp_column_departure_country}, ${index_to_column(tcomp_column + 6)}${tcomp_vertical_offset - 1}, ${tcomp_column_arrival_city}:${tcomp_column_arrival_city}, ${index_to_column(tcomp_column + 4)}${tcomp_vertical_offset}, ${tcomp_column_arrival_country}:${tcomp_column_arrival_country}, ${index_to_column(tcomp_column + 6)}${tcomp_vertical_offset}"
         for i, s in enumerate(tcomp_transports):  # N_trips
             sheet_formatted.write_formula(
                 tcomp_vertical_offset + i + 1,
@@ -295,7 +296,7 @@ def save_to_file(df_raw: pd.DataFrame, output_path: Path, ges1p5_path: Path) -> 
             sheet_formatted.write_formula(
                 tcomp_vertical_offset + 4,
                 tcomp_column + 2 + j,
-                f"SUM({index_to_column(col)}{tcomp_vertical_offset+2}:{index_to_column(col)}{tcomp_vertical_offset+4})",
+                f"SUM({index_to_column(col)}{tcomp_vertical_offset + 2}:{index_to_column(col)}{tcomp_vertical_offset + 4})",
                 synth_total_format
                 if j > 0
                 else workbook.add_format({"bg_color": "#ffe699", "border": 1, "align": "center", "valign": "vcenter", "num_format": "0"}),
