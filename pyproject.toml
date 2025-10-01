@@ -2,7 +2,7 @@
 name = "moulinette-missions"
 version = "0.3.0"
 description = "Compute CO2e emissions from LMD travel data"
-authors = {name="Julie André", emil="julie.andre@lmd.ipsl.fr"}
+authors = {name="Julie André", email="julie.andre@lmd.ipsl.fr"}
 readme = "README.md"
 requires-python = ">=3.11,<4"
 dependencies = [

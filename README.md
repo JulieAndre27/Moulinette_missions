@@ -12,7 +12,7 @@ A tool to compute CO2e emisssions from mission transports from a given laborator
     * Pull this repository `git clone https://github.com/JulieAndre27/Moulinette_missions.git`
     * Navigate inside the directory `cd Moulinette_missions`
     * Install the environment `uv sync`
-    * (Optional: for developers) Setup pre-commit `pre-commit install`
+    * (Optional: for developers) Setup pre-commit `uv run pre-commit install`
 * Run `uv run moulinette.py`
 
 ## Usage
