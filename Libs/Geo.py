@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 import logging
 import os
 from dataclasses import dataclass
@@ -45,7 +46,7 @@ class GeoDistanceCalculator:
     """compute distance between locations, cached"""
 
     def __init__(self):
-        self.locator = geocoders.OpenCage(api_key="f92cf03ca7f24c999891faefd3fc4121", timeout=30)
+        self.locator = geocoders.OpenCage(api_key=base64.b64decode("MGQzODYzMjJlZmE3NGE3MGE1NDhlNzEzYzI3MDI2ZWM=").decode("utf-8"), timeout=30)  # obviously not meant to be robust obfuscation - only to discourage automated scrapers
         self.N_api_calls = 0
         self.N_cache_hits = 0
         self.cache_path = "Data/Config/geocache.json"
